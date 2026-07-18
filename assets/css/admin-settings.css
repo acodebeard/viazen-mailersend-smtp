@@ -2,3 +2,11 @@
 	display: inline-block;
 	margin: 0.25rem 0;
 }
+
+.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-status-valid {
+	color: #008a20;
+}
+
+.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-status-invalid {
+	color: #b32d2e;
+}

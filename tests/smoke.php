@@ -1,8 +1,14 @@
 <?php
 
 namespace PHPMailer\PHPMailer {
+	class Exception extends \Exception {}
+	class SMTP {}
+
 	class PHPMailer {
 		public const ENCRYPTION_STARTTLS = 'tls';
+		public static bool $smtpConnectResult = true;
+		public static bool $throwOnConnect = false;
+		public static int $smtpCloseCount = 0;
 		public string $Mailer = 'mail';
 		public string $Host = '';
 		public int $Port = 0;
@@ -16,6 +22,18 @@ namespace PHPMailer\PHPMailer {
 
 		public function isSMTP(): void {
 			$this->Mailer = 'smtp';
+		}
+
+		public function smtpConnect(): bool {
+			if ( self::$throwOnConnect ) {
+				throw new \RuntimeException( 'Fake SMTP error with password=saved-password' );
+			}
+
+			return self::$smtpConnectResult;
+		}
+
+		public function smtpClose(): void {
+			++self::$smtpCloseCount;
 		}
 	}
 }
@@ -42,6 +60,7 @@ namespace {
 	function get_bloginfo() { return 'Viazen Test'; }
 	function get_option( $name, $default = false ) { return $GLOBALS['viazen_test_options'][ $name ] ?? $default; }
 	function update_option( $name, $value ) { $GLOBALS['viazen_test_options'][ $name ] = $value; return true; }
+	function delete_option( $name ) { unset( $GLOBALS['viazen_test_options'][ $name ] ); return true; }
 	function sanitize_email( $value ) { return filter_var( $value, FILTER_SANITIZE_EMAIL ); }
 	function is_email( $value ) { return false !== filter_var( $value, FILTER_VALIDATE_EMAIL ); }
 	function sanitize_text_field( $value ) { return trim( strip_tags( (string) $value ) ); }
@@ -49,11 +68,14 @@ namespace {
 	function add_settings_error() {}
 	function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 	function esc_attr__( $value ) { return $value; }
+	function __( $value ) { return $value; }
+	function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 	function esc_html__( $value ) { return $value; }
 	function esc_html_e( $value ) { echo $value; }
 	function esc_url( $value ) { return filter_var( $value, FILTER_SANITIZE_URL ); }
 	function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . $path; }
 	function wp_nonce_field() { echo '<input type="hidden" name="_wpnonce" value="test-nonce">'; }
+	function disabled( $condition ) { if ( $condition ) { echo ' disabled="disabled"'; } }
 	function get_current_user_id() { return 1; }
 	function get_user_meta( $user_id, $key ) { return $GLOBALS['viazen_test_user_meta'][ $user_id ][ $key ] ?? ''; }
 	function plugin_dir_url() { return 'https://example.test/wp-content/plugins/viazen-mailersend-smtp/'; }
@@ -95,6 +117,31 @@ namespace {
 	viazen_assert( 'sender@example.test' === $class::filter_from_email( 'other@example.test' ), 'From email was not overridden.' );
 	viazen_assert( 'Viazen Sender' === $class::filter_from_name( 'Other Sender' ), 'From name was not overridden.' );
 
+	\PHPMailer\PHPMailer\PHPMailer::$smtpConnectResult = true;
+	viazen_assert( true === $class::check_smtp_credentials(), 'Valid SMTP credentials were not accepted.' );
+	\PHPMailer\PHPMailer\PHPMailer::$smtpConnectResult = false;
+	viazen_assert( false === $class::check_smtp_credentials(), 'Rejected SMTP credentials were accepted.' );
+	\PHPMailer\PHPMailer\PHPMailer::$throwOnConnect = true;
+	viazen_assert( false === $class::check_smtp_credentials(), 'SMTP exception did not produce a safe invalid result.' );
+	\PHPMailer\PHPMailer\PHPMailer::$throwOnConnect = false;
+	viazen_assert( 3 === \PHPMailer\PHPMailer\PHPMailer::$smtpCloseCount, 'SMTP connections were not closed after credential checks.' );
+
+	ob_start();
+	$class::render_credential_check();
+	$unchecked_credentials_html = ob_get_clean();
+	viazen_assert( str_contains( $unchecked_credentials_html, 'Not checked' ), 'Unchecked credential status is missing.' );
+	viazen_assert( false === str_contains( $unchecked_credentials_html, 'disabled="disabled"' ), 'Credential check was disabled with saved credentials.' );
+	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_credential_status'] = 'valid';
+	ob_start();
+	$class::render_credential_check();
+	$valid_credentials_html = ob_get_clean();
+	viazen_assert( str_contains( $valid_credentials_html, '>Valid</span>' ), 'Valid credential status is missing.' );
+	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_credential_status'] = 'invalid';
+	ob_start();
+	$class::render_credential_check();
+	$invalid_credentials_html = ob_get_clean();
+	viazen_assert( str_contains( $invalid_credentials_html, '>Not valid</span>' ), 'Invalid credential status is missing.' );
+
 	$class::enqueue_admin_assets( 'settings_page_other-plugin' );
 	viazen_assert( array() === $GLOBALS['viazen_test_styles'], 'Admin stylesheet loaded on an unrelated page.' );
 	$class::enqueue_admin_assets( 'settings_page_viazen-mailersend-smtp' );
@@ -120,6 +167,11 @@ namespace {
 	$new_password_html = ob_get_clean();
 	viazen_assert( false === str_contains( $new_password_html, 'value="000000"' ), 'Empty password rendered a saved-password mask.' );
 	viazen_assert( str_contains( $new_password_html, 'name="viazen_mailersend_smtp_settings[smtp_password]"' ), 'Empty password did not render an editable field.' );
+	ob_start();
+	$class::render_credential_check();
+	$missing_credentials_html = ob_get_clean();
+	viazen_assert( str_contains( $missing_credentials_html, 'Not checked' ), 'Missing credentials displayed a stale status.' );
+	viazen_assert( str_contains( $missing_credentials_html, 'disabled="disabled"' ), 'Credential check was enabled without a saved password.' );
 	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_settings']['smtp_password'] = 'saved-password';
 
 	$preserved = $class::sanitize_settings(
@@ -132,6 +184,17 @@ namespace {
 	);
 	viazen_assert( 'saved-user' === $preserved['smtp_username'], 'Blank username did not preserve the saved value.' );
 	viazen_assert( 'saved-password' === $preserved['smtp_password'], 'Blank password did not preserve the saved value.' );
+	viazen_assert( 'invalid' === $GLOBALS['viazen_test_options']['viazen_mailersend_smtp_credential_status'], 'Unchanged credentials cleared their status.' );
+
+	$class::sanitize_settings(
+		array(
+			'smtp_username' => 'replacement-user',
+			'smtp_password' => '',
+			'from_email' => 'sender@example.test',
+			'from_name' => 'Viazen Sender',
+		)
+	);
+	viazen_assert( ! isset( $GLOBALS['viazen_test_options']['viazen_mailersend_smtp_credential_status'] ), 'Changed credentials retained a stale status.' );
 
 	$malformed = $class::sanitize_settings(
 		array(

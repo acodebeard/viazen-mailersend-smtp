@@ -11,6 +11,7 @@ All notable changes to SMTP Connector for MailerSend are documented here.
 - Add scoped spacing to settings-page link-style controls.
 - Adopt the publishable title SMTP Connector for MailerSend throughout user-facing copy.
 - Preserve required DNS and competing-SMTP-plugin guidance in the WordPress readme.
+- Add a non-sending SMTP authentication check with a stored valid or not-valid status.
 
 ## [1.0.1] - 2026-07-17
 

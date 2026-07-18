@@ -24,6 +24,8 @@ update_option(
 	false
 );
 
+update_option( 'viazen_mailersend_smtp_credential_status', 'valid', false );
+
 $admin_ids = get_users(
 	array(
 		'role'   => 'administrator',

@@ -16,9 +16,11 @@ require_once ABSPATH . WPINC . '/class-wp-phpmailer.php';
 
 $settings_option   = 'viazen_mailersend_smtp_settings';
 $diagnostic_option = 'viazen_mailersend_smtp_diagnostic';
+$credential_status_option = 'viazen_mailersend_smtp_credential_status';
 $fake_username     = 'integration-user';
 $fake_password     = 'integration-secret';
 
+delete_option( $credential_status_option );
 Plugin::activate();
 update_option(
 	$settings_option,
@@ -33,12 +35,14 @@ update_option(
 
 viazen_wp_assert( false === array_key_exists( $settings_option, wp_load_alloptions() ), 'Settings option is autoloaded.' );
 viazen_wp_assert( false === array_key_exists( $diagnostic_option, wp_load_alloptions() ), 'Diagnostic option is autoloaded.' );
+viazen_wp_assert( false === array_key_exists( $credential_status_option, wp_load_alloptions() ), 'Credential status option is autoloaded.' );
 viazen_wp_assert( PHP_INT_MAX === has_action( 'phpmailer_init', array( Plugin::class, 'configure_phpmailer' ) ), 'phpmailer_init hook is missing or has the wrong priority.' );
 viazen_wp_assert( PHP_INT_MAX === has_filter( 'wp_mail_from', array( Plugin::class, 'filter_from_email' ) ), 'wp_mail_from hook is missing or has the wrong priority.' );
 viazen_wp_assert( PHP_INT_MAX === has_filter( 'wp_mail_from_name', array( Plugin::class, 'filter_from_name' ) ), 'wp_mail_from_name hook is missing or has the wrong priority.' );
 viazen_wp_assert( false !== has_action( 'wp_mail_failed', array( Plugin::class, 'record_failure' ) ), 'wp_mail_failed hook is missing.' );
 viazen_wp_assert( false !== has_action( 'wp_mail_succeeded', array( Plugin::class, 'record_success' ) ), 'wp_mail_succeeded hook is missing.' );
 viazen_wp_assert( false !== has_action( 'admin_enqueue_scripts', array( Plugin::class, 'enqueue_admin_assets' ) ), 'Admin stylesheet hook is missing.' );
+viazen_wp_assert( false !== has_action( 'admin_post_viazen_mailersend_smtp_check_credentials', array( Plugin::class, 'handle_check_credentials' ) ), 'Credential check hook is missing.' );
 viazen_wp_assert( false !== has_action( 'admin_post_viazen_mailersend_smtp_dismiss_donation', array( Plugin::class, 'handle_dismiss_donation' ) ), 'Donation dismissal hook is missing.' );
 
 wp_dequeue_style( 'viazen-mailersend-smtp-admin' );
@@ -77,6 +81,22 @@ viazen_wp_assert( 1 === count( $mailer->getAttachments() ), 'Attachment was chan
 viazen_wp_assert( 'sender@example.com' === apply_filters( 'wp_mail_from', 'visitor@example.com' ), 'From email was not overridden.' );
 viazen_wp_assert( 'Viazen Integration' === apply_filters( 'wp_mail_from_name', 'Visitor' ), 'From name was not overridden.' );
 
+ob_start();
+Plugin::render_credential_check();
+$unchecked_credentials_html = ob_get_clean();
+viazen_wp_assert( str_contains( $unchecked_credentials_html, 'Not checked' ), 'Unchecked credential status is missing.' );
+viazen_wp_assert( false === str_contains( $unchecked_credentials_html, 'disabled="disabled"' ), 'Credential check was disabled with saved credentials.' );
+update_option( $credential_status_option, 'valid', false );
+ob_start();
+Plugin::render_credential_check();
+$valid_credentials_html = ob_get_clean();
+viazen_wp_assert( str_contains( $valid_credentials_html, '>Valid</span>' ), 'Valid credential status is missing.' );
+update_option( $credential_status_option, 'invalid', false );
+ob_start();
+Plugin::render_credential_check();
+$invalid_credentials_html = ob_get_clean();
+viazen_wp_assert( str_contains( $invalid_credentials_html, '>Not valid</span>' ), 'Invalid credential status is missing.' );
+
 $preserved = Plugin::sanitize_settings(
 	array(
 		'smtp_username' => '',
@@ -87,6 +107,17 @@ $preserved = Plugin::sanitize_settings(
 );
 viazen_wp_assert( $fake_username === $preserved['smtp_username'], 'Blank username did not preserve the saved value.' );
 viazen_wp_assert( $fake_password === $preserved['smtp_password'], 'Blank password did not preserve the saved value.' );
+viazen_wp_assert( 'invalid' === get_option( $credential_status_option ), 'Unchanged credentials cleared their status.' );
+
+Plugin::sanitize_settings(
+	array(
+		'smtp_username' => 'replacement-user',
+		'smtp_password' => '',
+		'from_email'    => 'sender@example.com',
+		'from_name'     => 'Viazen Integration',
+	)
+);
+viazen_wp_assert( false === get_option( $credential_status_option, false ), 'Changed credentials retained a stale status.' );
 
 $malformed = Plugin::sanitize_settings(
 	array(
@@ -220,6 +251,8 @@ viazen_wp_assert( false === $registered[ $settings_option ]['show_in_rest'], 'Cr
 
 delete_option( $settings_option );
 delete_option( $diagnostic_option );
+delete_option( $credential_status_option );
 Plugin::activate();
 delete_option( $diagnostic_option );
+delete_option( $credential_status_option );
 WP_CLI::success( 'SMTP Connector for MailerSend WordPress integration checks passed.' );

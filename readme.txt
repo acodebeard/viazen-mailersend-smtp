@@ -63,6 +63,10 @@ enters the settings-page HTML; a fixed six-character mask shows that it exists,
 and a small disclosure reveals a blank replacement field when needed. Leaving
 the replacement field blank preserves the saved password.
 
+The credential check connects to MailerSend and authenticates without sending
+an email. It stores only valid or not valid. It never stores or displays the
+SMTP response or an error transcript.
+
 == Hooks used ==
 
 * `phpmailer_init` configures WordPress PHPMailer for MailerSend SMTP.
@@ -75,10 +79,19 @@ the replacement field blank preserves the saved password.
 * `admin_enqueue_scripts` loads the small stylesheet only on this plugin's settings page.
 * `admin_notices` warns administrators when a known mail-routing plugin is also active.
 * `admin_post_viazen_mailersend_smtp_send_test` securely handles test email requests.
+* `admin_post_viazen_mailersend_smtp_check_credentials` securely checks saved SMTP credentials without sending email.
 * `admin_post_viazen_mailersend_smtp_clear_diagnostic` securely clears the latest result.
 * `admin_post_viazen_mailersend_smtp_dismiss_donation` securely saves a user's dismissal of the settings-page support link.
 
 == Manual testing ==
+
+= SMTP credential check =
+
+1. Save valid MailerSend SMTP credentials.
+2. Select Check credentials and confirm the status changes to Valid.
+3. Save an intentionally incorrect password, check again, and confirm the status changes to Not valid.
+4. Confirm the page source and stored option contain no SMTP response, username, or password.
+5. Restore and recheck the valid credentials.
 
 = Plugin test email =
 
@@ -152,7 +165,7 @@ transcripts are never stored by this plugin.
 
 Use Clear diagnostic result on the settings page to delete the stored result.
 Deactivation preserves plugin settings. Deleting the plugin through WordPress
-removes its settings and latest diagnostic result.
+removes its settings, credential-check status, and latest diagnostic result.
 
 == Changelog ==
 
