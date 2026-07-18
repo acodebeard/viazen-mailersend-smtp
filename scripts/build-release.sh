@@ -6,6 +6,9 @@ plugin_slug="viazen-mailersend-smtp"
 dist_dir="${project_root}/dist"
 output_path="${1:-${dist_dir}/${plugin_slug}.zip}"
 stage_dir="$(mktemp -d)"
+source_date_epoch="${SOURCE_DATE_EPOCH:-$(git -C "${project_root}" log -1 --format=%ct 2>/dev/null || printf '315532800')}"
+
+export TZ=UTC
 
 cleanup() {
 	rm -rf "${stage_dir}"
@@ -22,10 +25,17 @@ for file in "${plugin_slug}.php" uninstall.php readme.txt LICENSE; do
 	cp "${project_root}/${file}" "${stage_dir}/${plugin_slug}/${file}"
 done
 
+find "${stage_dir}" -exec touch -h -d "@${source_date_epoch}" {} +
+
 rm -f "${output_path}"
 (
 	cd "${stage_dir}"
-	zip -q -X -r -9 "${output_path}" "${plugin_slug}"
+	zip -q -X -9 "${output_path}" \
+		"${plugin_slug}/" \
+		"${plugin_slug}/LICENSE" \
+		"${plugin_slug}/readme.txt" \
+		"${plugin_slug}/uninstall.php" \
+		"${plugin_slug}/${plugin_slug}.php"
 )
 
 unzip -q -t "${output_path}"
