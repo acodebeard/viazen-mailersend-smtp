@@ -222,4 +222,4 @@ delete_option( $settings_option );
 delete_option( $diagnostic_option );
 Plugin::activate();
 delete_option( $diagnostic_option );
-WP_CLI::success( 'Viazen MailerSend SMTP WordPress integration checks passed.' );
+WP_CLI::success( 'SMTP Connector for MailerSend WordPress integration checks passed.' );

@@ -1,4 +1,4 @@
-=== Viazen MailerSend SMTP ===
+=== SMTP Connector for MailerSend ===
 Contributors: acodebeard
 Donate link: https://paypal.me/acodebeard
 Tags: smtp, email, mailersend, contact form 7
@@ -13,7 +13,7 @@ Routes all WordPress wp_mail() messages through authenticated MailerSend SMTP.
 
 == Description ==
 
-Viazen MailerSend SMTP is a deliberately small, independent SMTP transport.
+SMTP Connector for MailerSend is a deliberately small, independent SMTP transport.
 It configures the PHPMailer copy already included with WordPress and does not
 use the MailerSend API, external libraries, telemetry, advertising, or remote
 services other than the configured SMTP connection used to send mail.
@@ -42,8 +42,8 @@ trademark of MailerSend, Inc.; the name is used only to identify compatibility.
 == Installation ==
 
 1. Upload `viazen-mailersend-smtp.zip` through Plugins > Add New Plugin > Upload Plugin.
-2. Activate Viazen MailerSend SMTP.
-3. Open Settings > MailerSend SMTP.
+2. Activate SMTP Connector for MailerSend.
+3. Open Settings > SMTP Connector for MailerSend.
 4. Enter the MailerSend SMTP username and password.
 5. Enter a verified From email and the desired From name, then save.
 6. Send a test email from the same settings page.
@@ -71,7 +71,7 @@ the replacement field blank preserves the saved password.
 * `wp_mail_from_name` forces the configured From name.
 * `wp_mail_failed` stores the latest redacted failure result.
 * `wp_mail_succeeded` stores the latest success result.
-* `admin_menu` adds Settings > MailerSend SMTP.
+* `admin_menu` adds Settings > SMTP Connector for MailerSend.
 * `admin_init` registers fields through the WordPress Settings API.
 * `admin_enqueue_scripts` loads the small stylesheet only on this plugin's settings page.
 * `admin_notices` warns administrators when a known mail-routing plugin is also active.

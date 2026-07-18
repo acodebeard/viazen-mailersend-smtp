@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       Viazen MailerSend SMTP
+ * Plugin Name:       SMTP Connector for MailerSend
  * Plugin URI:        https://github.com/acodebeard/viazen-mailersend-smtp
  * Description:       Independent integration that routes WordPress email through MailerSend SMTP.
  * Version:           1.0.1
@@ -159,14 +159,14 @@ final class Plugin {
 	}
 
 	/**
-	 * Adds Settings > MailerSend SMTP.
+	 * Adds Settings > SMTP Connector for MailerSend.
 	 *
 	 * @return void
 	 */
 	public static function add_settings_page(): void {
 		add_options_page(
-			esc_html__( 'MailerSend SMTP', 'viazen-mailersend-smtp' ),
-			esc_html__( 'MailerSend SMTP', 'viazen-mailersend-smtp' ),
+			esc_html__( 'SMTP Connector for MailerSend', 'viazen-mailersend-smtp' ),
+			esc_html__( 'SMTP Connector for MailerSend', 'viazen-mailersend-smtp' ),
 			'manage_options',
 			self::PAGE_SLUG,
 			array( self::class, 'render_settings_page' )
@@ -554,8 +554,8 @@ final class Plugin {
 			self::redirect_with_notice( 'invalid-recipient' );
 		}
 
-		$subject = __( 'Viazen MailerSend SMTP test email', 'viazen-mailersend-smtp' );
-		$message = __( 'This test email was sent through WordPress wp_mail() using the Viazen MailerSend SMTP plugin.', 'viazen-mailersend-smtp' );
+		$subject = __( 'SMTP Connector for MailerSend test email', 'viazen-mailersend-smtp' );
+		$message = __( 'This test email was sent through WordPress wp_mail() using the SMTP Connector for MailerSend plugin.', 'viazen-mailersend-smtp' );
 		$sent    = wp_mail(
 			$recipient,
 			$subject,

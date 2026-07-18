@@ -6,12 +6,27 @@ plugin_file="${project_root}/viazen-mailersend-smtp.php"
 readme_file="${project_root}/readme.txt"
 changelog_file="${project_root}/CHANGELOG.md"
 admin_css_file="${project_root}/assets/css/admin-settings.css"
+published_title='SMTP Connector for MailerSend'
 
 plugin_version="$(sed -n 's/^ \* Version:[[:space:]]*//p' "${plugin_file}")"
 stable_tag="$(sed -n 's/^Stable tag:[[:space:]]*//p' "${readme_file}")"
+plugin_title="$(sed -n 's/^ \* Plugin Name:[[:space:]]*//p' "${plugin_file}")"
 
 if [[ -z "${plugin_version}" || "${plugin_version}" != "${stable_tag}" ]]; then
 	printf 'Plugin Version and readme Stable tag do not match.\n' >&2
+	exit 1
+fi
+
+if [[ "${plugin_title}" != "${published_title}" ]] || \
+	! grep -Fqx "=== ${published_title} ===" "${readme_file}" || \
+	! grep -Fqx "# ${published_title}" "${project_root}/README.md"; then
+	printf 'The publishable plugin title is missing or inconsistent.\n' >&2
+	exit 1
+fi
+
+if grep -RIFq 'Viazen MailerSend SMTP' \
+	--exclude=check-metadata.sh --exclude-dir=.git --exclude-dir=dist --exclude-dir=vendor "${project_root}"; then
+	printf 'The retired display title is still present.\n' >&2
 	exit 1
 fi
 

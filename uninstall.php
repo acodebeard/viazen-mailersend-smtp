@@ -1,6 +1,6 @@
 <?php
 /**
- * Uninstall Viazen MailerSend SMTP.
+ * Uninstall SMTP Connector for MailerSend.
  *
  * @package ViazenMailerSendSmtp
  */
