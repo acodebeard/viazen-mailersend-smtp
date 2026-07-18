@@ -3,8 +3,9 @@ set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 plugin_slug="viazen-mailersend-smtp"
+package_slug="smtp-connector-for-mailersend"
 dist_dir="${project_root}/dist"
-output_path="${1:-${dist_dir}/${plugin_slug}.zip}"
+output_path="${1:-${dist_dir}/${package_slug}.zip}"
 stage_dir="$(mktemp -d)"
 source_date_epoch="${SOURCE_DATE_EPOCH:-$(git -C "${project_root}" log -1 --format=%ct 2>/dev/null || printf '315532800')}"
 
@@ -27,6 +28,8 @@ done
 
 cp "${project_root}/assets/css/admin-settings.css" "${stage_dir}/${plugin_slug}/assets/css/admin-settings.css"
 
+find "${stage_dir}" -type d -exec chmod 755 {} +
+find "${stage_dir}" -type f -exec chmod 644 {} +
 find "${stage_dir}" -exec touch -h -d "@${source_date_epoch}" {} +
 
 rm -f "${output_path}"

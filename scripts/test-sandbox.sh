@@ -7,7 +7,7 @@ published_slug="smtp-connector-for-mailersend"
 wp_bin="${WP_BIN:-wp}"
 wp_path="${WP_PATH:-/opt/lampp/htdocs/sandbox}"
 wp_user="${WP_USER:-}"
-archive="${project_root}/dist/${plugin_slug}.zip"
+archive="${project_root}/dist/${published_slug}.zip"
 
 if ! command -v "${wp_bin}" >/dev/null 2>&1; then
 	printf 'WP-CLI was not found: %s\n' "${wp_bin}" >&2

@@ -29,17 +29,18 @@ advertising, or a general-purpose mail log.
 
 ## Install
 
-For a published version, download `viazen-mailersend-smtp.zip` from the matching
-GitHub Release. In WordPress Admin, open **Plugins > Add New Plugin > Upload
-Plugin**, upload the ZIP, and activate it.
+For a published version, download `smtp-connector-for-mailersend.zip` from the
+matching GitHub Release. In WordPress Admin, open **Plugins > Add New Plugin >
+Upload Plugin**, upload the ZIP, and activate it.
 
 Existing manual installations can use the same upload screen and select
 **Replace current with uploaded**. The GitHub package retains the legacy
-`viazen-mailersend-smtp` folder for this in-place upgrade path, while its public
-WordPress.org slug and translation text domain are
-`smtp-connector-for-mailersend`. Internal option names remain unchanged, so a
-normal replacement preserves saved credentials. Do not delete the existing
-plugin before replacing it because uninstall intentionally removes its options.
+`viazen-mailersend-smtp` folder inside the ZIP for this in-place upgrade path.
+The distribution filename, public WordPress.org slug, and translation text
+domain are `smtp-connector-for-mailersend`. Internal option names remain
+unchanged, so a normal replacement preserves saved credentials. Do not delete
+the existing plugin before replacing it because uninstall intentionally removes
+its options.
 
 Then open **Settings > SMTP Connector for MailerSend**, enter the SMTP credentials and a
 verified sender, save, run **Check credentials**, and use **Send Test Email**
@@ -84,8 +85,9 @@ scripts/build-release.sh
 PHPStan runs at level 10 as part of `composer check`; the project does not use
 a PHPStan baseline or ignored findings.
 
-The installable archive is written to `dist/viazen-mailersend-smtp.zip` and is
-not committed to the source repository.
+The installable archive is written to
+`dist/smtp-connector-for-mailersend.zip` and is not committed to the source
+repository.
 
 The destructive lifecycle and integration suite is intended only for a local
 WordPress sandbox:

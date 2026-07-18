@@ -6,6 +6,7 @@ plugin_file="${project_root}/viazen-mailersend-smtp.php"
 readme_file="${project_root}/readme.txt"
 changelog_file="${project_root}/CHANGELOG.md"
 admin_css_file="${project_root}/assets/css/admin-settings.css"
+build_script="${project_root}/scripts/build-release.sh"
 published_title='SMTP Connector for MailerSend'
 published_slug='smtp-connector-for-mailersend'
 
@@ -29,6 +30,11 @@ fi
 if [[ "${text_domain}" != "${published_slug}" ]] || \
 	grep -Fq ", 'viazen-mailersend-smtp' )" "${plugin_file}"; then
 	printf 'The translation text domain does not match the WordPress.org slug.\n' >&2
+	exit 1
+fi
+
+if ! grep -Fqx "package_slug=\"${published_slug}\"" "${build_script}"; then
+	printf 'The distribution ZIP filename does not match the WordPress.org slug.\n' >&2
 	exit 1
 fi
 

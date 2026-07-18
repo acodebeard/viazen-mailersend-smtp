@@ -3,7 +3,7 @@
  * Plugin Name:       SMTP Connector for MailerSend
  * Plugin URI:        https://github.com/acodebeard/viazen-mailersend-smtp
  * Description:       Independent integration that routes WordPress email through MailerSend SMTP.
- * Version:           1.0.3
+ * Version:           1.0.4
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            acodebeard
@@ -33,7 +33,7 @@ final class Plugin {
 	private const OPTION_SETTINGS = 'viazen_mailersend_smtp_settings';
 
 	/** Plugin version used for cache-safe admin assets. */
-	private const VERSION = '1.0.3';
+	private const VERSION = '1.0.4';
 
 	/** Most recent mail result option. */
 	private const OPTION_DIAGNOSTIC = 'viazen_mailersend_smtp_diagnostic';
