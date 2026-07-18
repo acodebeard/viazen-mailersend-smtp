@@ -69,6 +69,10 @@ for required_line in "${required_readme_lines[@]}"; do
 		printf 'Required MailerSend configuration guidance is missing from readme.txt.\n' >&2
 		exit 1
 	fi
+	if grep -Fq "${required_line}" "${plugin_file}"; then
+		printf 'Readme-only MailerSend configuration guidance was found in the admin UI.\n' >&2
+		exit 1
+	fi
 done
 
 printf 'Version, standalone-content, attribution, and donation checks passed.\n'

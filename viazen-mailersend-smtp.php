@@ -3,7 +3,7 @@
  * Plugin Name:       SMTP Connector for MailerSend
  * Plugin URI:        https://github.com/acodebeard/viazen-mailersend-smtp
  * Description:       Independent integration that routes WordPress email through MailerSend SMTP.
- * Version:           1.0.1
+ * Version:           1.0.2
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            acodebeard
@@ -33,7 +33,7 @@ final class Plugin {
 	private const OPTION_SETTINGS = 'viazen_mailersend_smtp_settings';
 
 	/** Plugin version used for cache-safe admin assets. */
-	private const VERSION = '1.0.1';
+	private const VERSION = '1.0.2';
 
 	/** Most recent mail result option. */
 	private const OPTION_DIAGNOSTIC = 'viazen_mailersend_smtp_diagnostic';
@@ -506,35 +506,29 @@ final class Plugin {
 
 		if ( 'valid' === $status ) {
 			$status_label = __( 'Valid', 'viazen-mailersend-smtp' );
-			$status_class = 'viazen-mailersend-smtp-status-valid';
+			$status_class = 'viazen-mailersend-smtp-credential-status--valid';
 		} elseif ( 'invalid' === $status ) {
 			$status_label = __( 'Not valid', 'viazen-mailersend-smtp' );
-			$status_class = 'viazen-mailersend-smtp-status-invalid';
+			$status_class = 'viazen-mailersend-smtp-credential-status--invalid';
 		} else {
 			$status_label = __( 'Not checked', 'viazen-mailersend-smtp' );
-			$status_class = '';
+			$status_class = 'viazen-mailersend-smtp-credential-status--unchecked';
 		}
 		?>
 		<hr>
-		<h2><?php esc_html_e( 'SMTP credential check', 'viazen-mailersend-smtp' ); ?></h2>
-		<p>
-			<strong><?php esc_html_e( 'Status:', 'viazen-mailersend-smtp' ); ?></strong>
-			<span class="<?php echo esc_attr( $status_class ); ?>"><?php echo esc_html( $status_label ); ?></span>
-		</p>
-		<form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
+		<h2><?php esc_html_e( 'Credential check', 'viazen-mailersend-smtp' ); ?></h2>
+		<div class="viazen-mailersend-smtp-credential-status <?php echo esc_attr( $status_class ); ?>" role="status">
+			<span class="viazen-mailersend-smtp-credential-status__label"><?php esc_html_e( 'Credential status', 'viazen-mailersend-smtp' ); ?></span>
+			<strong class="viazen-mailersend-smtp-credential-status__value"><?php echo esc_html( $status_label ); ?></strong>
+		</div>
+		<form class="viazen-mailersend-smtp-credential-check-form" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
 			<input type="hidden" name="action" value="viazen_mailersend_smtp_check_credentials">
 			<?php wp_nonce_field( self::CREDENTIAL_CHECK_NONCE_ACTION ); ?>
 			<button type="submit" class="button button-secondary"<?php disabled( ! $has_credentials ); ?>><?php esc_html_e( 'Check credentials', 'viazen-mailersend-smtp' ); ?></button>
 		</form>
-		<p class="description">
-			<?php
-			echo esc_html(
-				$has_credentials
-					? __( 'Checks the saved SMTP username and password by connecting and authenticating without sending an email.', 'viazen-mailersend-smtp' )
-					: __( 'Save an SMTP username and password before checking credentials.', 'viazen-mailersend-smtp' )
-			);
-			?>
-		</p>
+		<?php if ( ! $has_credentials ) : ?>
+			<p class="description"><?php esc_html_e( 'Save credentials before checking.', 'viazen-mailersend-smtp' ); ?></p>
+		<?php endif; ?>
 		<?php
 	}
 
@@ -580,7 +574,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Renders site-specific Contact Form 7 and DNS guidance.
+	 * Renders concise Contact Form 7 guidance.
 	 *
 	 * @return void
 	 */
@@ -590,14 +584,9 @@ final class Plugin {
 		$example_mail = is_email( $settings['from_email'] ) ? $settings['from_email'] : 'forms@example.com';
 		$from_example = sprintf( '%1$s <%2$s>', $example_name, $example_mail );
 		?>
-		<h2><?php esc_html_e( 'Contact Form 7 configuration', 'viazen-mailersend-smtp' ); ?></h2>
-		<p><?php esc_html_e( 'Use the MailerSend-verified domain for From. Put the visitor address in Reply-To, never in From.', 'viazen-mailersend-smtp' ); ?></p>
+		<h2><?php esc_html_e( 'Contact Form 7', 'viazen-mailersend-smtp' ); ?></h2>
+		<p><?php esc_html_e( 'Use the configured sender for From and the visitor email for Reply-To.', 'viazen-mailersend-smtp' ); ?></p>
 		<pre><?php echo esc_html( "From:\n{$from_example}\n\nReply-To:\n[your-email]" ); ?></pre>
-		<ul>
-			<li><?php esc_html_e( 'Keep DNS records required by MailerSend and by your existing email provider while those services remain in use.', 'viazen-mailersend-smtp' ); ?></li>
-			<li><?php esc_html_e( 'This plugin does not add, edit, remove, or validate DNS records.', 'viazen-mailersend-smtp' ); ?></li>
-			<li><?php esc_html_e( 'Keep other SMTP plugins, including the official MailerSend WordPress plugin, deactivated so they cannot configure the same PHPMailer instance.', 'viazen-mailersend-smtp' ); ?></li>
-		</ul>
 		<?php
 	}
 

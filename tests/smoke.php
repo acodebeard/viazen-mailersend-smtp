@@ -130,24 +130,28 @@ namespace {
 	$class::render_credential_check();
 	$unchecked_credentials_html = ob_get_clean();
 	viazen_assert( str_contains( $unchecked_credentials_html, 'Not checked' ), 'Unchecked credential status is missing.' );
+	viazen_assert( str_contains( $unchecked_credentials_html, 'viazen-mailersend-smtp-credential-status--unchecked' ), 'Unchecked credential status is not visually classified.' );
+	viazen_assert( str_contains( $unchecked_credentials_html, 'viazen-mailersend-smtp-credential-status__value' ), 'Credential status value is missing its prominent style hook.' );
 	viazen_assert( false === str_contains( $unchecked_credentials_html, 'disabled="disabled"' ), 'Credential check was disabled with saved credentials.' );
 	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_credential_status'] = 'valid';
 	ob_start();
 	$class::render_credential_check();
 	$valid_credentials_html = ob_get_clean();
-	viazen_assert( str_contains( $valid_credentials_html, '>Valid</span>' ), 'Valid credential status is missing.' );
+	viazen_assert( str_contains( $valid_credentials_html, '>Valid</strong>' ), 'Valid credential status is missing.' );
+	viazen_assert( str_contains( $valid_credentials_html, 'viazen-mailersend-smtp-credential-status--valid' ), 'Valid credential status is not visually classified.' );
 	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_credential_status'] = 'invalid';
 	ob_start();
 	$class::render_credential_check();
 	$invalid_credentials_html = ob_get_clean();
-	viazen_assert( str_contains( $invalid_credentials_html, '>Not valid</span>' ), 'Invalid credential status is missing.' );
+	viazen_assert( str_contains( $invalid_credentials_html, '>Not valid</strong>' ), 'Invalid credential status is missing.' );
+	viazen_assert( str_contains( $invalid_credentials_html, 'viazen-mailersend-smtp-credential-status--invalid' ), 'Invalid credential status is not visually classified.' );
 
 	$class::enqueue_admin_assets( 'settings_page_other-plugin' );
 	viazen_assert( array() === $GLOBALS['viazen_test_styles'], 'Admin stylesheet loaded on an unrelated page.' );
 	$class::enqueue_admin_assets( 'settings_page_viazen-mailersend-smtp' );
 	$admin_style = $GLOBALS['viazen_test_styles']['viazen-mailersend-smtp-admin'] ?? array();
 	viazen_assert( str_ends_with( $admin_style['src'] ?? '', '/assets/css/admin-settings.css' ), 'Admin stylesheet URL is incorrect.' );
-	viazen_assert( '1.0.1' === ( $admin_style['version'] ?? '' ), 'Admin stylesheet version is incorrect.' );
+	viazen_assert( '1.0.2' === ( $admin_style['version'] ?? '' ), 'Admin stylesheet version is incorrect.' );
 
 	ob_start();
 	$class::render_username_field();

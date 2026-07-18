@@ -5,7 +5,7 @@ Tags: smtp, email, mailersend, contact form 7
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -168,6 +168,13 @@ Deactivation preserves plugin settings. Deleting the plugin through WordPress
 removes its settings, credential-check status, and latest diagnostic result.
 
 == Changelog ==
+
+= 1.0.2 =
+
+* Added a non-sending SMTP credential check with a prominent valid or not-valid status.
+* Improved saved-credential controls without exposing the saved SMTP password.
+* Adopted the publishable plugin title and added an optional dismissible support link.
+* Raised project static analysis to PHPStan level 10.
 
 = 1.0.1 =
 

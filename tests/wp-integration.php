@@ -85,17 +85,21 @@ ob_start();
 Plugin::render_credential_check();
 $unchecked_credentials_html = ob_get_clean();
 viazen_wp_assert( str_contains( $unchecked_credentials_html, 'Not checked' ), 'Unchecked credential status is missing.' );
+viazen_wp_assert( str_contains( $unchecked_credentials_html, 'viazen-mailersend-smtp-credential-status--unchecked' ), 'Unchecked credential status is not visually classified.' );
+viazen_wp_assert( str_contains( $unchecked_credentials_html, 'viazen-mailersend-smtp-credential-status__value' ), 'Credential status value is missing its prominent style hook.' );
 viazen_wp_assert( false === str_contains( $unchecked_credentials_html, 'disabled="disabled"' ), 'Credential check was disabled with saved credentials.' );
 update_option( $credential_status_option, 'valid', false );
 ob_start();
 Plugin::render_credential_check();
 $valid_credentials_html = ob_get_clean();
-viazen_wp_assert( str_contains( $valid_credentials_html, '>Valid</span>' ), 'Valid credential status is missing.' );
+viazen_wp_assert( str_contains( $valid_credentials_html, '>Valid</strong>' ), 'Valid credential status is missing.' );
+viazen_wp_assert( str_contains( $valid_credentials_html, 'viazen-mailersend-smtp-credential-status--valid' ), 'Valid credential status is not visually classified.' );
 update_option( $credential_status_option, 'invalid', false );
 ob_start();
 Plugin::render_credential_check();
 $invalid_credentials_html = ob_get_clean();
-viazen_wp_assert( str_contains( $invalid_credentials_html, '>Not valid</span>' ), 'Invalid credential status is missing.' );
+viazen_wp_assert( str_contains( $invalid_credentials_html, '>Not valid</strong>' ), 'Invalid credential status is missing.' );
+viazen_wp_assert( str_contains( $invalid_credentials_html, 'viazen-mailersend-smtp-credential-status--invalid' ), 'Invalid credential status is not visually classified.' );
 
 $preserved = Plugin::sanitize_settings(
 	array(

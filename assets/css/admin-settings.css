@@ -3,10 +3,56 @@
 	margin: 0.25rem 0;
 }
 
-.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-status-valid {
-	color: #008a20;
+.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-credential-status {
+	box-sizing: border-box;
+	max-width: 32rem;
+	margin: 0.75rem 0 1rem;
+	padding: 1rem 1.25rem;
+	border: 1px solid #c3c4c7;
+	border-left-width: 6px;
+	background: #fff;
 }
 
-.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-status-invalid {
-	color: #b32d2e;
+.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-credential-status__label {
+	display: block;
+	color: #50575e;
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-credential-status__value {
+	display: block;
+	margin-top: 0.125rem;
+	font-size: 2rem;
+	line-height: 1.2;
+}
+
+.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-credential-status--valid {
+	border-left-color: #008a20;
+	background: #edfaef;
+}
+
+.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-credential-status--valid .viazen-mailersend-smtp-credential-status__value {
+	color: #006b1b;
+}
+
+.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-credential-status--invalid {
+	border-left-color: #b32d2e;
+	background: #fcf0f1;
+}
+
+.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-credential-status--invalid .viazen-mailersend-smtp-credential-status__value {
+	color: #8a2424;
+}
+
+.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-credential-status--unchecked {
+	border-left-color: #646970;
+	background: #f6f7f7;
+}
+
+.viazen-mailersend-smtp-settings .viazen-mailersend-smtp-credential-check-form {
+	margin-bottom: 0.5rem;
 }
