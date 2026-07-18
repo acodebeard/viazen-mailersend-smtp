@@ -11,3 +11,4 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 delete_option( 'viazen_mailersend_smtp_settings' );
 delete_option( 'viazen_mailersend_smtp_diagnostic' );
+delete_metadata( 'user', 0, 'viazen_mailersend_smtp_donation_dismissed', '', true );

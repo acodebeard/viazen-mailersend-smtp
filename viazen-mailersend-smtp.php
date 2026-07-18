@@ -50,6 +50,15 @@ final class Plugin {
 	/** Nonce action for one-time action notices. */
 	private const NOTICE_NONCE_ACTION = 'viazen_mailersend_smtp_notice';
 
+	/** Optional support link shown only on this plugin's settings page. */
+	private const DONATE_URL = 'https://paypal.me/acodebeard';
+
+	/** Nonce action for dismissing the settings-page support link. */
+	private const DONATION_DISMISS_NONCE_ACTION = 'viazen_mailersend_smtp_dismiss_donation';
+
+	/** Per-user record for a dismissed settings-page support link. */
+	private const DONATION_DISMISSED_META = 'viazen_mailersend_smtp_donation_dismissed';
+
 	/**
 	 * Conservative list of plugins known to configure SMTP or mail routing.
 	 *
@@ -81,6 +90,7 @@ final class Plugin {
 		add_action( 'admin_notices', array( self::class, 'render_conflict_notice' ) );
 		add_action( 'admin_post_viazen_mailersend_smtp_send_test', array( self::class, 'handle_send_test' ) );
 		add_action( 'admin_post_viazen_mailersend_smtp_clear_diagnostic', array( self::class, 'handle_clear_diagnostic' ) );
+		add_action( 'admin_post_viazen_mailersend_smtp_dismiss_donation', array( self::class, 'handle_dismiss_donation' ) );
 	}
 
 	/**
@@ -436,8 +446,51 @@ final class Plugin {
 
 			<hr>
 			<?php self::render_diagnostic(); ?>
+
+			<?php self::render_donation_link(); ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Renders a restrained support link on this plugin's settings page.
+	 *
+	 * @return void
+	 */
+	public static function render_donation_link(): void {
+		$user_id = get_current_user_id();
+		if ( 0 < $user_id && '1' === get_user_meta( $user_id, self::DONATION_DISMISSED_META, true ) ) {
+			return;
+		}
+		?>
+		<hr>
+		<div class="notice notice-info inline">
+			<form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
+				<input type="hidden" name="action" value="viazen_mailersend_smtp_dismiss_donation">
+				<?php wp_nonce_field( self::DONATION_DISMISS_NONCE_ACTION ); ?>
+				<p>
+					<a href="<?php echo esc_url( self::DONATE_URL ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Support this plugin via PayPal', 'viazen-mailersend-smtp' ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'viazen-mailersend-smtp' ); ?></span></a>
+					<span aria-hidden="true"> &middot; </span>
+					<button type="submit" class="button-link"><?php esc_html_e( 'Dismiss', 'viazen-mailersend-smtp' ); ?></button>
+				</p>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Persists dismissal of the settings-page support link for one user.
+	 *
+	 * @return never
+	 */
+	public static function handle_dismiss_donation() {
+		self::require_settings_access();
+		check_admin_referer( self::DONATION_DISMISS_NONCE_ACTION );
+		update_user_meta( get_current_user_id(), self::DONATION_DISMISSED_META, '1' );
+
+		$url = add_query_arg( 'page', self::PAGE_SLUG, admin_url( 'options-general.php' ) );
+		wp_safe_redirect( $url );
+		exit;
 	}
 
 	/**

@@ -38,6 +38,7 @@ viazen_wp_assert( PHP_INT_MAX === has_filter( 'wp_mail_from', array( Plugin::cla
 viazen_wp_assert( PHP_INT_MAX === has_filter( 'wp_mail_from_name', array( Plugin::class, 'filter_from_name' ) ), 'wp_mail_from_name hook is missing or has the wrong priority.' );
 viazen_wp_assert( false !== has_action( 'wp_mail_failed', array( Plugin::class, 'record_failure' ) ), 'wp_mail_failed hook is missing.' );
 viazen_wp_assert( false !== has_action( 'wp_mail_succeeded', array( Plugin::class, 'record_success' ) ), 'wp_mail_succeeded hook is missing.' );
+viazen_wp_assert( false !== has_action( 'admin_post_viazen_mailersend_smtp_dismiss_donation', array( Plugin::class, 'handle_dismiss_donation' ) ), 'Donation dismissal hook is missing.' );
 
 $mailer = new WP_PHPMailer( true );
 $mailer->addReplyTo( 'visitor@example.com', 'Visitor' );
@@ -101,6 +102,15 @@ viazen_wp_assert( false === str_contains( $password_html, $fake_password ), 'Sav
 viazen_wp_assert( str_contains( $password_html, 'value="000000"' ), 'Saved password status did not render a six-character mask.' );
 viazen_wp_assert( str_contains( $password_html, '<details>' ), 'Saved password did not render a native change control.' );
 viazen_wp_assert( str_contains( $password_html, 'Change password' ), 'Saved password change control is missing its label.' );
+
+ob_start();
+Plugin::render_donation_link();
+$donation_html = ob_get_clean();
+viazen_wp_assert( str_contains( $donation_html, 'https://paypal.me/acodebeard' ), 'Donation link destination is missing.' );
+viazen_wp_assert( str_contains( $donation_html, 'target="_blank"' ), 'Donation link does not open separately.' );
+viazen_wp_assert( str_contains( $donation_html, 'rel="noopener noreferrer"' ), 'Donation link is missing safe relationship attributes.' );
+viazen_wp_assert( str_contains( $donation_html, 'viazen_mailersend_smtp_dismiss_donation' ), 'Donation dismissal action is missing.' );
+viazen_wp_assert( str_contains( $donation_html, '>Dismiss</button>' ), 'Donation dismissal control is missing.' );
 
 do_action(
 	'wp_mail_failed',

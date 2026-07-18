@@ -1,5 +1,6 @@
 === Viazen MailerSend SMTP ===
 Contributors: acodebeard
+Donate link: https://paypal.me/acodebeard
 Tags: smtp, email, mailersend, contact form 7
 Requires at least: 6.5
 Tested up to: 7.0
@@ -58,9 +59,10 @@ Keep the official MailerSend WordPress plugin deactivated. Running multiple
 SMTP plugins can cause more than one plugin to configure the same PHPMailer
 instance, producing order-dependent and unpredictable results.
 
-The saved SMTP username and password are never rendered back into the settings
-page. Leave either credential field blank to keep its saved value, or enter a
-new value to replace it.
+The saved SMTP username remains visible and editable. The saved password never
+enters the settings-page HTML; a fixed six-character mask shows that it exists,
+and a small disclosure reveals a blank replacement field when needed. Leaving
+the replacement field blank preserves the saved password.
 
 == Hooks used ==
 
@@ -74,6 +76,7 @@ new value to replace it.
 * `admin_notices` warns administrators when a known mail-routing plugin is also active.
 * `admin_post_viazen_mailersend_smtp_send_test` securely handles test email requests.
 * `admin_post_viazen_mailersend_smtp_clear_diagnostic` securely clears the latest result.
+* `admin_post_viazen_mailersend_smtp_dismiss_donation` securely saves a user's dismissal of the settings-page support link.
 
 == Manual testing ==
 

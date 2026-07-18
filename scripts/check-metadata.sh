@@ -31,4 +31,10 @@ if ! grep -Fq 'not affiliated with, endorsed' "${project_root}/README.md" || \
 	exit 1
 fi
 
-printf 'Version, standalone-content, and attribution checks passed.\n'
+if ! grep -Fqx 'Donate link: https://paypal.me/acodebeard' "${readme_file}" || \
+	! grep -Fq "private const DONATE_URL = 'https://paypal.me/acodebeard';" "${plugin_file}"; then
+	printf 'The approved donation link is missing or inconsistent.\n' >&2
+	exit 1
+fi
+
+printf 'Version, standalone-content, attribution, and donation checks passed.\n'

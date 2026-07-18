@@ -32,6 +32,7 @@ namespace {
 			'from_name' => 'Viazen Sender',
 		),
 	);
+	$GLOBALS['viazen_test_user_meta'] = array();
 
 	function add_action() {}
 	function add_filter() {}
@@ -48,6 +49,12 @@ namespace {
 	function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 	function esc_attr__( $value ) { return $value; }
 	function esc_html__( $value ) { return $value; }
+	function esc_html_e( $value ) { echo $value; }
+	function esc_url( $value ) { return filter_var( $value, FILTER_SANITIZE_URL ); }
+	function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . $path; }
+	function wp_nonce_field() { echo '<input type="hidden" name="_wpnonce" value="test-nonce">'; }
+	function get_current_user_id() { return 1; }
+	function get_user_meta( $user_id, $key ) { return $GLOBALS['viazen_test_user_meta'][ $user_id ][ $key ] ?? ''; }
 
 	class WP_Error {
 		private string $message;
@@ -171,6 +178,22 @@ namespace {
 	);
 	$malformed_diagnostic = $GLOBALS['viazen_test_options']['viazen_mailersend_smtp_diagnostic'];
 	viazen_assert( '' === $malformed_diagnostic['subject'], 'Malformed diagnostic subject was not rejected.' );
+
+	ob_start();
+	$class::render_donation_link();
+	$donation_html = ob_get_clean();
+	viazen_assert( str_contains( $donation_html, 'https://paypal.me/acodebeard' ), 'Donation link destination is missing.' );
+	viazen_assert( str_contains( $donation_html, 'target="_blank"' ), 'Donation link does not open separately.' );
+	viazen_assert( str_contains( $donation_html, 'rel="noopener noreferrer"' ), 'Donation link is missing safe relationship attributes.' );
+	viazen_assert( str_contains( $donation_html, 'Support this plugin via PayPal' ), 'Donation link label is missing.' );
+	viazen_assert( str_contains( $donation_html, 'viazen_mailersend_smtp_dismiss_donation' ), 'Donation dismissal action is missing.' );
+	viazen_assert( str_contains( $donation_html, '>Dismiss</button>' ), 'Donation dismissal control is missing.' );
+
+	$GLOBALS['viazen_test_user_meta'][1]['viazen_mailersend_smtp_donation_dismissed'] = '1';
+	ob_start();
+	$class::render_donation_link();
+	$dismissed_donation_html = ob_get_clean();
+	viazen_assert( '' === $dismissed_donation_html, 'Dismissed donation link was rendered.' );
 
 	echo "Isolated plugin harness passed.\n";
 }
