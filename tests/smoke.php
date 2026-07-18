@@ -46,6 +46,7 @@ namespace {
 	function wp_unslash( $value ) { return $value; }
 	function add_settings_error() {}
 	function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
+	function esc_attr__( $value ) { return $value; }
 	function esc_html__( $value ) { return $value; }
 
 	class WP_Error {
@@ -84,11 +85,23 @@ namespace {
 
 	ob_start();
 	$class::render_username_field();
+	$username_html = ob_get_clean();
+	ob_start();
 	$class::render_password_field();
-	$credential_html = ob_get_clean();
-	viazen_assert( false === str_contains( $credential_html, 'saved-user' ), 'Saved username entered HTML.' );
-	viazen_assert( false === str_contains( $credential_html, 'saved-password' ), 'Saved password entered HTML.' );
-	viazen_assert( false === str_contains( $credential_html, 'value=' ), 'Credential field rendered a value attribute.' );
+	$password_html = ob_get_clean();
+	viazen_assert( str_contains( $username_html, 'value="saved-user"' ), 'Saved username was not shown.' );
+	viazen_assert( false === str_contains( $password_html, 'saved-password' ), 'Saved password entered HTML.' );
+	viazen_assert( str_contains( $password_html, 'value="000000"' ), 'Saved password status did not render a six-character mask.' );
+	viazen_assert( str_contains( $password_html, '<details>' ), 'Saved password did not render a native change control.' );
+	viazen_assert( str_contains( $password_html, 'Change password' ), 'Saved password change control is missing its label.' );
+
+	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_settings']['smtp_password'] = '';
+	ob_start();
+	$class::render_password_field();
+	$new_password_html = ob_get_clean();
+	viazen_assert( false === str_contains( $new_password_html, 'value="000000"' ), 'Empty password rendered a saved-password mask.' );
+	viazen_assert( str_contains( $new_password_html, 'name="viazen_mailersend_smtp_settings[smtp_password]"' ), 'Empty password did not render an editable field.' );
+	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_settings']['smtp_password'] = 'saved-password';
 
 	$preserved = $class::sanitize_settings(
 		array(

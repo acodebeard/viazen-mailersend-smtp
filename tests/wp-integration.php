@@ -92,11 +92,15 @@ viazen_wp_assert( 'Viazen Integration' === $malformed['from_name'], 'Malformed F
 
 ob_start();
 Plugin::render_username_field();
+$username_html = ob_get_clean();
+ob_start();
 Plugin::render_password_field();
-$credential_html = ob_get_clean();
-viazen_wp_assert( false === str_contains( $credential_html, $fake_username ), 'Saved username entered admin HTML.' );
-viazen_wp_assert( false === str_contains( $credential_html, $fake_password ), 'Saved password entered admin HTML.' );
-viazen_wp_assert( false === str_contains( $credential_html, 'value=' ), 'Credential HTML contains a value attribute.' );
+$password_html = ob_get_clean();
+viazen_wp_assert( str_contains( $username_html, 'value="' . $fake_username . '"' ), 'Saved username was not shown in admin HTML.' );
+viazen_wp_assert( false === str_contains( $password_html, $fake_password ), 'Saved password entered admin HTML.' );
+viazen_wp_assert( str_contains( $password_html, 'value="000000"' ), 'Saved password status did not render a six-character mask.' );
+viazen_wp_assert( str_contains( $password_html, '<details>' ), 'Saved password did not render a native change control.' );
+viazen_wp_assert( str_contains( $password_html, 'Change password' ), 'Saved password change control is missing its label.' );
 
 do_action(
 	'wp_mail_failed',

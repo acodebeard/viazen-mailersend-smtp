@@ -6,6 +6,7 @@ All notable changes to Viazen MailerSend SMTP are documented here.
 
 - Raised PHPStan analysis from level 6 to level 10 without suppressions or a baseline.
 - Hardened request, option, and diagnostic handling against unexpected value types.
+- Show the saved SMTP username and provide an accessible password-replacement disclosure without exposing the saved password.
 
 ## [1.0.1] - 2026-07-17
 

@@ -324,30 +324,48 @@ final class Plugin {
 	}
 
 	/**
-	 * Renders a blank SMTP username replacement field.
+	 * Renders the saved SMTP username for review or replacement.
 	 *
 	 * @return void
 	 */
 	public static function render_username_field(): void {
+		$settings = self::get_settings();
+
 		printf(
-			'<input type="text" class="regular-text" id="viazen-mailersend-smtp-username" name="%1$s[smtp_username]" autocomplete="off" spellcheck="false"><p class="description">%2$s</p>',
+			'<input type="text" class="regular-text" id="viazen-mailersend-smtp-username" name="%1$s[smtp_username]" value="%2$s" autocomplete="off" spellcheck="false"><p class="description">%3$s</p>',
 			esc_attr( self::OPTION_SETTINGS ),
-			esc_html__( 'Enter a new username to replace the saved username. Leave blank to keep the saved username.', 'viazen-mailersend-smtp' )
+			esc_attr( $settings['smtp_username'] ),
+			esc_html__( 'The SMTP username currently used to authenticate with MailerSend.', 'viazen-mailersend-smtp' )
 		);
 	}
 
 	/**
-	 * Renders a blank SMTP password replacement field.
+	 * Renders password status and a blank replacement field when requested.
 	 *
-	 * No value attribute is output, so the saved password cannot enter HTML.
+	 * The six-character value is a fixed visual mask, not the saved password.
+	 * The saved password never enters the generated HTML.
 	 *
 	 * @return void
 	 */
 	public static function render_password_field(): void {
+		$settings = self::get_settings();
+
+		if ( '' === $settings['smtp_password'] ) {
+			printf(
+				'<input type="password" class="regular-text" id="viazen-mailersend-smtp-password" name="%1$s[smtp_password]" autocomplete="new-password" spellcheck="false"><p class="description">%2$s</p>',
+				esc_attr( self::OPTION_SETTINGS ),
+				esc_html__( 'Enter the SMTP password supplied by MailerSend.', 'viazen-mailersend-smtp' )
+			);
+			return;
+		}
+
 		printf(
-			'<input type="password" class="regular-text" id="viazen-mailersend-smtp-password" name="%1$s[smtp_password]" autocomplete="new-password" spellcheck="false"><p class="description">%2$s</p>',
+			'<input type="password" class="regular-text" id="viazen-mailersend-smtp-password-saved" value="000000" disabled autocomplete="off" aria-label="%1$s"><details><summary class="button-link">%2$s</summary><p><label class="screen-reader-text" for="viazen-mailersend-smtp-password">%3$s</label><input type="password" class="regular-text" id="viazen-mailersend-smtp-password" name="%4$s[smtp_password]" autocomplete="new-password" spellcheck="false" aria-describedby="viazen-mailersend-smtp-password-description"></p><p class="description" id="viazen-mailersend-smtp-password-description">%5$s</p></details>',
+			esc_attr__( 'A saved SMTP password is set.', 'viazen-mailersend-smtp' ),
+			esc_html__( 'Change password', 'viazen-mailersend-smtp' ),
+			esc_html__( 'New SMTP password', 'viazen-mailersend-smtp' ),
 			esc_attr( self::OPTION_SETTINGS ),
-			esc_html__( 'Enter a new password to replace the saved password. Leave blank to keep the saved password.', 'viazen-mailersend-smtp' )
+			esc_html__( 'Enter a new password to replace the saved password. Leaving this blank keeps the saved password.', 'viazen-mailersend-smtp' )
 		);
 	}
 
