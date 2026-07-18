@@ -71,6 +71,9 @@ composer check
 scripts/build-release.sh
 ```
 
+PHPStan runs at level 10 as part of `composer check`; the project does not use
+a PHPStan baseline or ignored findings.
+
 The installable archive is written to `dist/viazen-mailersend-smtp.zip` and is
 not committed to the source repository.
 

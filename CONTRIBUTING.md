@@ -7,7 +7,8 @@ Before opening a pull request:
 
 1. Do not include SMTP credentials or real message content in code, fixtures,
    screenshots, commits, or GitHub Issues.
-2. Run `composer install` and `composer check`.
+2. Run `composer install` and `composer check`. PHPStan level 10 must pass
+   without a baseline or ignored findings.
 3. Build the package with `scripts/build-release.sh`.
 4. For mail-path changes, run `scripts/test-sandbox.sh` against a disposable
    local WordPress installation.

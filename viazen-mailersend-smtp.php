@@ -234,21 +234,21 @@ final class Plugin {
 		$clean    = $existing;
 		$input    = is_array( $input ) ? wp_unslash( $input ) : array();
 
-		if ( isset( $input['smtp_username'] ) ) {
-			$username = trim( sanitize_text_field( (string) $input['smtp_username'] ) );
+		if ( isset( $input['smtp_username'] ) && is_string( $input['smtp_username'] ) ) {
+			$username = trim( sanitize_text_field( $input['smtp_username'] ) );
 			if ( '' !== $username ) {
 				$clean['smtp_username'] = self::limit_text( $username, 320 );
 			}
 		}
 
-		if ( isset( $input['smtp_password'] ) && '' !== (string) $input['smtp_password'] ) {
-			$password = preg_replace( '/[\x00-\x1F\x7F]/', '', (string) $input['smtp_password'] );
+		if ( isset( $input['smtp_password'] ) && is_string( $input['smtp_password'] ) && '' !== $input['smtp_password'] ) {
+			$password = preg_replace( '/[\x00-\x1F\x7F]/', '', $input['smtp_password'] );
 			if ( is_string( $password ) && '' !== $password ) {
 				$clean['smtp_password'] = self::limit_text( $password, 1024, false );
 			}
 		}
 
-		$submitted_email = isset( $input['from_email'] ) ? trim( (string) $input['from_email'] ) : '';
+		$submitted_email = isset( $input['from_email'] ) && is_string( $input['from_email'] ) ? trim( $input['from_email'] ) : '';
 		$from_email      = sanitize_email( $submitted_email );
 		if ( '' !== $from_email && is_email( $from_email ) ) {
 			$clean['from_email'] = $from_email;
@@ -260,7 +260,7 @@ final class Plugin {
 			);
 		}
 
-		$from_name = isset( $input['from_name'] ) ? trim( sanitize_text_field( (string) $input['from_name'] ) ) : '';
+		$from_name = isset( $input['from_name'] ) && is_string( $input['from_name'] ) ? trim( sanitize_text_field( $input['from_name'] ) ) : '';
 		if ( '' !== $from_name ) {
 			$clean['from_name'] = self::limit_text( $from_name, 200 );
 		} else {
@@ -453,7 +453,9 @@ final class Plugin {
 		self::require_settings_access();
 		check_admin_referer( self::TEST_NONCE_ACTION );
 
-		$recipient = isset( $_POST['recipient_email'] ) ? sanitize_email( wp_unslash( $_POST['recipient_email'] ) ) : '';
+		$recipient = isset( $_POST['recipient_email'] ) && is_string( $_POST['recipient_email'] )
+			? sanitize_email( wp_unslash( $_POST['recipient_email'] ) )
+			: '';
 		if ( ! is_email( $recipient ) ) {
 			self::redirect_with_notice( 'invalid-recipient' );
 		}
@@ -523,14 +525,21 @@ final class Plugin {
 			return;
 		}
 
-		$status    = 'success' === $diagnostic['status'] ? __( 'Success', 'viazen-mailersend-smtp' ) : __( 'Failure', 'viazen-mailersend-smtp' );
-		$category  = isset( $diagnostic['category'] ) ? sanitize_key( $diagnostic['category'] ) : 'general-failure';
-		$meaning   = self::get_diagnostic_category_label( $category );
-		$timestamp = isset( $diagnostic['timestamp'] ) ? absint( $diagnostic['timestamp'] ) : 0;
-		$date      = $timestamp ? wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp, wp_timezone() ) : '';
-		$recipient = isset( $diagnostic['recipient'] ) ? (string) $diagnostic['recipient'] : '';
-		$subject   = isset( $diagnostic['subject'] ) ? (string) $diagnostic['subject'] : '';
-		$error     = isset( $diagnostic['error'] ) ? (string) $diagnostic['error'] : '';
+		$stored_status   = is_string( $diagnostic['status'] ) ? $diagnostic['status'] : 'failure';
+		$status          = 'success' === $stored_status ? __( 'Success', 'viazen-mailersend-smtp' ) : __( 'Failure', 'viazen-mailersend-smtp' );
+		$category        = isset( $diagnostic['category'] ) && is_string( $diagnostic['category'] ) ? sanitize_key( $diagnostic['category'] ) : 'general-failure';
+		$meaning         = self::get_diagnostic_category_label( $category );
+		$timestamp_value = $diagnostic['timestamp'] ?? 0;
+		$timestamp       = is_int( $timestamp_value ) || is_string( $timestamp_value ) ? absint( $timestamp_value ) : 0;
+		$date_format     = get_option( 'date_format', 'F j, Y' );
+		$date_format     = is_string( $date_format ) ? $date_format : 'F j, Y';
+		$time_format     = get_option( 'time_format', 'g:i a' );
+		$time_format     = is_string( $time_format ) ? $time_format : 'g:i a';
+		$formatted_date  = $timestamp ? wp_date( $date_format . ' ' . $time_format, $timestamp, wp_timezone() ) : '';
+		$date            = is_string( $formatted_date ) ? $formatted_date : '';
+		$recipient       = isset( $diagnostic['recipient'] ) && is_string( $diagnostic['recipient'] ) ? $diagnostic['recipient'] : '';
+		$subject         = isset( $diagnostic['subject'] ) && is_string( $diagnostic['subject'] ) ? $diagnostic['subject'] : '';
+		$error           = isset( $diagnostic['error'] ) && is_string( $diagnostic['error'] ) ? $diagnostic['error'] : '';
 		?>
 		<table class="widefat striped" role="presentation">
 			<tbody>
@@ -539,7 +548,7 @@ final class Plugin {
 				<tr><th scope="row"><?php esc_html_e( 'Date and time', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $date ); ?></td></tr>
 				<tr><th scope="row"><?php esc_html_e( 'Recipient', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $recipient ); ?></td></tr>
 				<tr><th scope="row"><?php esc_html_e( 'Subject', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $subject ); ?></td></tr>
-				<?php if ( 'failure' === $diagnostic['status'] && '' !== $error ) : ?>
+				<?php if ( 'failure' === $stored_status && '' !== $error ) : ?>
 					<tr><th scope="row"><?php esc_html_e( 'Error', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $error ); ?></td></tr>
 				<?php endif; ?>
 			</tbody>
@@ -555,9 +564,9 @@ final class Plugin {
 	/**
 	 * Stores only the diagnostic fields explicitly allowed by the plugin.
 	 *
-	 * @param string               $status    Success or failure.
-	 * @param array<string, mixed> $mail_data Selected wp_mail() metadata source.
-	 * @param string               $error     Failure message, if available.
+	 * @param string       $status    Success or failure.
+	 * @param array<mixed> $mail_data Selected wp_mail() metadata source.
+	 * @param string       $error     Failure message, if available.
 	 * @return void
 	 */
 	private static function store_diagnostic( string $status, array $mail_data, string $error ): void {
@@ -567,7 +576,7 @@ final class Plugin {
 			'category'  => $category,
 			'timestamp' => time(),
 			'recipient' => self::sanitize_recipients( $mail_data['to'] ?? '' ),
-			'subject'   => self::limit_text( sanitize_text_field( (string) ( $mail_data['subject'] ?? '' ) ), 500 ),
+			'subject'   => self::limit_text( sanitize_text_field( isset( $mail_data['subject'] ) && is_string( $mail_data['subject'] ) ? $mail_data['subject'] : '' ), 500 ),
 			'error'     => 'failure' === $status ? self::sanitize_error_message( $error ) : '',
 		);
 
@@ -747,6 +756,10 @@ final class Plugin {
 			return;
 		}
 
+		if ( ! is_string( $_GET['viazen_mailersend_smtp_notice'] ) || ! is_string( $_GET['viazen_mailersend_smtp_notice_n'] ) ) {
+			return;
+		}
+
 		$notice = sanitize_key( wp_unslash( $_GET['viazen_mailersend_smtp_notice'] ) );
 		$nonce  = sanitize_text_field( wp_unslash( $_GET['viazen_mailersend_smtp_notice_n'] ) );
 		if ( ! wp_verify_nonce( $nonce, self::NOTICE_NONCE_ACTION ) ) {
@@ -777,10 +790,16 @@ final class Plugin {
 	 * @return array{smtp_username:string, smtp_password:string, from_email:string, from_name:string}
 	 */
 	private static function get_settings(): array {
-		$stored = get_option( self::OPTION_SETTINGS, array() );
-		$stored = is_array( $stored ) ? $stored : array();
+		$stored  = get_option( self::OPTION_SETTINGS, array() );
+		$stored  = is_array( $stored ) ? $stored : array();
+		$default = self::get_default_settings();
 
-		return array_merge( self::get_default_settings(), array_intersect_key( $stored, self::get_default_settings() ) );
+		return array(
+			'smtp_username' => isset( $stored['smtp_username'] ) && is_string( $stored['smtp_username'] ) ? $stored['smtp_username'] : $default['smtp_username'],
+			'smtp_password' => isset( $stored['smtp_password'] ) && is_string( $stored['smtp_password'] ) ? $stored['smtp_password'] : $default['smtp_password'],
+			'from_email'    => isset( $stored['from_email'] ) && is_string( $stored['from_email'] ) ? $stored['from_email'] : $default['from_email'],
+			'from_name'     => isset( $stored['from_name'] ) && is_string( $stored['from_name'] ) ? $stored['from_name'] : $default['from_name'],
+		);
 	}
 
 	/**
@@ -789,7 +808,8 @@ final class Plugin {
 	 * @return array{smtp_username:string, smtp_password:string, from_email:string, from_name:string}
 	 */
 	private static function get_default_settings(): array {
-		$admin_email = sanitize_email( (string) get_option( 'admin_email', '' ) );
+		$admin_email = get_option( 'admin_email', '' );
+		$admin_email = is_string( $admin_email ) ? sanitize_email( $admin_email ) : '';
 
 		return array(
 			'smtp_username' => '',

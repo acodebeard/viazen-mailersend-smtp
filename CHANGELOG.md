@@ -2,6 +2,11 @@
 
 All notable changes to Viazen MailerSend SMTP are documented here.
 
+## Unreleased
+
+- Raised PHPStan analysis from level 6 to level 10 without suppressions or a baseline.
+- Hardened request, option, and diagnostic handling against unexpected value types.
+
 ## [1.0.1] - 2026-07-17
 
 - Added Contact Form 7 sender and Reply-To guidance.

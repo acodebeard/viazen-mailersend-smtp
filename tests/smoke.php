@@ -101,6 +101,34 @@ namespace {
 	viazen_assert( 'saved-user' === $preserved['smtp_username'], 'Blank username did not preserve the saved value.' );
 	viazen_assert( 'saved-password' === $preserved['smtp_password'], 'Blank password did not preserve the saved value.' );
 
+	$malformed = $class::sanitize_settings(
+		array(
+			'smtp_username' => array( 'unexpected' ),
+			'smtp_password' => array( 'unexpected' ),
+			'from_email' => array( 'unexpected' ),
+			'from_name' => array( 'unexpected' ),
+		)
+	);
+	viazen_assert( 'saved-user' === $malformed['smtp_username'], 'Malformed username input replaced the saved value.' );
+	viazen_assert( 'saved-password' === $malformed['smtp_password'], 'Malformed password input replaced the saved value.' );
+	viazen_assert( 'sender@example.test' === $malformed['from_email'], 'Malformed From email input replaced the saved value.' );
+	viazen_assert( 'Viazen Sender' === $malformed['from_name'], 'Malformed From name input replaced the saved value.' );
+
+	$saved_settings = $GLOBALS['viazen_test_options']['viazen_mailersend_smtp_settings'];
+	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_settings'] = array(
+		'smtp_username' => array( 'unexpected' ),
+		'smtp_password' => array( 'unexpected' ),
+		'from_email' => array( 'unexpected' ),
+		'from_name' => array( 'unexpected' ),
+	);
+	$normalized_mailer = new \PHPMailer\PHPMailer\PHPMailer();
+	$class::configure_phpmailer( $normalized_mailer );
+	viazen_assert( '' === $normalized_mailer->Username, 'Malformed stored username was not rejected.' );
+	viazen_assert( '' === $normalized_mailer->Password, 'Malformed stored password was not rejected.' );
+	viazen_assert( 'admin@example.test' === $class::filter_from_email( 'other@example.test' ), 'Malformed stored From email did not use the safe default.' );
+	viazen_assert( 'Viazen Test' === $class::filter_from_name( 'Other Sender' ), 'Malformed stored From name did not use the safe default.' );
+	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_settings'] = $saved_settings;
+
 	$error = new WP_Error(
 		'Authentication failed for username=saved-user password=saved-password',
 		array(
@@ -118,6 +146,18 @@ namespace {
 	viazen_assert( false === str_contains( $diagnostic['error'], 'saved-password' ), 'Diagnostic exposed the SMTP password.' );
 	viazen_assert( false === str_contains( serialize( $diagnostic ), 'DO NOT STORE THIS BODY' ), 'Diagnostic stored a message body.' );
 	viazen_assert( false === str_contains( serialize( $diagnostic ), '/secret/file.pdf' ), 'Diagnostic stored an attachment path.' );
+
+	$class::record_failure(
+		new WP_Error(
+			'Unknown mail failure',
+			array(
+				'to' => 'recipient@example.test',
+				'subject' => array( 'unexpected' ),
+			)
+		)
+	);
+	$malformed_diagnostic = $GLOBALS['viazen_test_options']['viazen_mailersend_smtp_diagnostic'];
+	viazen_assert( '' === $malformed_diagnostic['subject'], 'Malformed diagnostic subject was not rejected.' );
 
 	echo "Isolated plugin harness passed.\n";
 }

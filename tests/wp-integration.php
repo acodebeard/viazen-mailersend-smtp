@@ -77,6 +77,19 @@ $preserved = Plugin::sanitize_settings(
 viazen_wp_assert( $fake_username === $preserved['smtp_username'], 'Blank username did not preserve the saved value.' );
 viazen_wp_assert( $fake_password === $preserved['smtp_password'], 'Blank password did not preserve the saved value.' );
 
+$malformed = Plugin::sanitize_settings(
+	array(
+		'smtp_username' => array( 'unexpected' ),
+		'smtp_password' => array( 'unexpected' ),
+		'from_email'    => array( 'unexpected' ),
+		'from_name'     => array( 'unexpected' ),
+	)
+);
+viazen_wp_assert( $fake_username === $malformed['smtp_username'], 'Malformed username input replaced the saved value.' );
+viazen_wp_assert( $fake_password === $malformed['smtp_password'], 'Malformed password input replaced the saved value.' );
+viazen_wp_assert( 'sender@example.com' === $malformed['from_email'], 'Malformed From email input replaced the saved value.' );
+viazen_wp_assert( 'Viazen Integration' === $malformed['from_name'], 'Malformed From name input replaced the saved value.' );
+
 ob_start();
 Plugin::render_username_field();
 Plugin::render_password_field();
