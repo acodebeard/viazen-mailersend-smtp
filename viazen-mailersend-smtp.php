@@ -3,14 +3,14 @@
  * Plugin Name:       SMTP Connector for MailerSend
  * Plugin URI:        https://github.com/acodebeard/viazen-mailersend-smtp
  * Description:       Independent integration that routes WordPress email through MailerSend SMTP.
- * Version:           1.0.2
+ * Version:           1.0.3
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            acodebeard
  * Author URI:        https://github.com/acodebeard
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       viazen-mailersend-smtp
+ * Text Domain:       smtp-connector-for-mailersend
  *
  * @package ViazenMailerSendSmtp
  */
@@ -33,7 +33,7 @@ final class Plugin {
 	private const OPTION_SETTINGS = 'viazen_mailersend_smtp_settings';
 
 	/** Plugin version used for cache-safe admin assets. */
-	private const VERSION = '1.0.2';
+	private const VERSION = '1.0.3';
 
 	/** Most recent mail result option. */
 	private const OPTION_DIAGNOSTIC = 'viazen_mailersend_smtp_diagnostic';
@@ -173,8 +173,8 @@ final class Plugin {
 	 */
 	public static function add_settings_page(): void {
 		add_options_page(
-			esc_html__( 'SMTP Connector for MailerSend', 'viazen-mailersend-smtp' ),
-			esc_html__( 'SMTP Connector for MailerSend', 'viazen-mailersend-smtp' ),
+			esc_html__( 'SMTP Connector for MailerSend', 'smtp-connector-for-mailersend' ),
+			esc_html__( 'SMTP Connector for MailerSend', 'smtp-connector-for-mailersend' ),
 			'manage_options',
 			self::PAGE_SLUG,
 			array( self::class, 'render_settings_page' )
@@ -219,14 +219,14 @@ final class Plugin {
 
 		add_settings_section(
 			'viazen_mailersend_smtp_credentials',
-			esc_html__( 'SMTP credentials', 'viazen-mailersend-smtp' ),
+			esc_html__( 'SMTP credentials', 'smtp-connector-for-mailersend' ),
 			array( self::class, 'render_credentials_section' ),
 			self::PAGE_SLUG
 		);
 
 		add_settings_field(
 			'viazen_mailersend_smtp_username',
-			esc_html__( 'SMTP username', 'viazen-mailersend-smtp' ),
+			esc_html__( 'SMTP username', 'smtp-connector-for-mailersend' ),
 			array( self::class, 'render_username_field' ),
 			self::PAGE_SLUG,
 			'viazen_mailersend_smtp_credentials'
@@ -234,7 +234,7 @@ final class Plugin {
 
 		add_settings_field(
 			'viazen_mailersend_smtp_password',
-			esc_html__( 'SMTP password', 'viazen-mailersend-smtp' ),
+			esc_html__( 'SMTP password', 'smtp-connector-for-mailersend' ),
 			array( self::class, 'render_password_field' ),
 			self::PAGE_SLUG,
 			'viazen_mailersend_smtp_credentials'
@@ -242,14 +242,14 @@ final class Plugin {
 
 		add_settings_section(
 			'viazen_mailersend_smtp_sender',
-			esc_html__( 'Sender', 'viazen-mailersend-smtp' ),
+			esc_html__( 'Sender', 'smtp-connector-for-mailersend' ),
 			array( self::class, 'render_sender_section' ),
 			self::PAGE_SLUG
 		);
 
 		add_settings_field(
 			'viazen_mailersend_smtp_from_email',
-			esc_html__( 'From email', 'viazen-mailersend-smtp' ),
+			esc_html__( 'From email', 'smtp-connector-for-mailersend' ),
 			array( self::class, 'render_from_email_field' ),
 			self::PAGE_SLUG,
 			'viazen_mailersend_smtp_sender'
@@ -257,7 +257,7 @@ final class Plugin {
 
 		add_settings_field(
 			'viazen_mailersend_smtp_from_name',
-			esc_html__( 'From name', 'viazen-mailersend-smtp' ),
+			esc_html__( 'From name', 'smtp-connector-for-mailersend' ),
 			array( self::class, 'render_from_name_field' ),
 			self::PAGE_SLUG,
 			'viazen_mailersend_smtp_sender'
@@ -301,7 +301,7 @@ final class Plugin {
 			add_settings_error(
 				self::OPTION_SETTINGS,
 				'viazen_mailersend_smtp_invalid_from_email',
-				esc_html__( 'Enter a valid From email address.', 'viazen-mailersend-smtp' )
+				esc_html__( 'Enter a valid From email address.', 'smtp-connector-for-mailersend' )
 			);
 		}
 
@@ -312,7 +312,7 @@ final class Plugin {
 			add_settings_error(
 				self::OPTION_SETTINGS,
 				'viazen_mailersend_smtp_invalid_from_name',
-				esc_html__( 'Enter a From name.', 'viazen-mailersend-smtp' )
+				esc_html__( 'Enter a From name.', 'smtp-connector-for-mailersend' )
 			);
 		}
 
@@ -329,7 +329,7 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function render_credentials_section(): void {
-		echo '<p>' . esc_html__( 'Mail is sent through smtp.mailersend.net using authenticated STARTTLS on port 587.', 'viazen-mailersend-smtp' ) . '</p>';
+		echo '<p>' . esc_html__( 'Mail is sent through smtp.mailersend.net using authenticated STARTTLS on port 587.', 'smtp-connector-for-mailersend' ) . '</p>';
 	}
 
 	/**
@@ -338,7 +338,7 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function render_sender_section(): void {
-		echo '<p>' . esc_html__( 'This sender overrides From values supplied by forms and other plugins. Their Reply-To headers remain unchanged.', 'viazen-mailersend-smtp' ) . '</p>';
+		echo '<p>' . esc_html__( 'This sender overrides From values supplied by forms and other plugins. Their Reply-To headers remain unchanged.', 'smtp-connector-for-mailersend' ) . '</p>';
 	}
 
 	/**
@@ -361,11 +361,11 @@ final class Plugin {
 
 		printf(
 			'<div class="notice notice-warning"><p><strong>%1$s</strong> %2$s</p></div>',
-			esc_html__( 'Possible mail-plugin conflict:', 'viazen-mailersend-smtp' ),
+			esc_html__( 'Possible mail-plugin conflict:', 'smtp-connector-for-mailersend' ),
 			esc_html(
 				sprintf(
 					/* translators: %s: Comma-separated plugin names. */
-					__( '%s is also active. Multiple mail-routing plugins can configure the same PHPMailer instance and produce unpredictable results. Keep only the intended SMTP plugin active.', 'viazen-mailersend-smtp' ),
+					__( '%s is also active. Multiple mail-routing plugins can configure the same PHPMailer instance and produce unpredictable results. Keep only the intended SMTP plugin active.', 'smtp-connector-for-mailersend' ),
 					implode( ', ', $conflicts )
 				)
 			)
@@ -384,7 +384,7 @@ final class Plugin {
 			'<input type="text" class="regular-text" id="viazen-mailersend-smtp-username" name="%1$s[smtp_username]" value="%2$s" autocomplete="off" spellcheck="false"><p class="description">%3$s</p>',
 			esc_attr( self::OPTION_SETTINGS ),
 			esc_attr( $settings['smtp_username'] ),
-			esc_html__( 'The SMTP username currently used to authenticate with MailerSend.', 'viazen-mailersend-smtp' )
+			esc_html__( 'The SMTP username currently used to authenticate with MailerSend.', 'smtp-connector-for-mailersend' )
 		);
 	}
 
@@ -403,18 +403,18 @@ final class Plugin {
 			printf(
 				'<input type="password" class="regular-text" id="viazen-mailersend-smtp-password" name="%1$s[smtp_password]" autocomplete="new-password" spellcheck="false"><p class="description">%2$s</p>',
 				esc_attr( self::OPTION_SETTINGS ),
-				esc_html__( 'Enter the SMTP password supplied by MailerSend.', 'viazen-mailersend-smtp' )
+				esc_html__( 'Enter the SMTP password supplied by MailerSend.', 'smtp-connector-for-mailersend' )
 			);
 			return;
 		}
 
 		printf(
 			'<input type="password" class="regular-text" id="viazen-mailersend-smtp-password-saved" value="000000" disabled autocomplete="off" aria-label="%1$s"><details><summary class="button-link">%2$s</summary><p><label class="screen-reader-text" for="viazen-mailersend-smtp-password">%3$s</label><input type="password" class="regular-text" id="viazen-mailersend-smtp-password" name="%4$s[smtp_password]" autocomplete="new-password" spellcheck="false" aria-describedby="viazen-mailersend-smtp-password-description"></p><p class="description" id="viazen-mailersend-smtp-password-description">%5$s</p></details>',
-			esc_attr__( 'A saved SMTP password is set.', 'viazen-mailersend-smtp' ),
-			esc_html__( 'Change password', 'viazen-mailersend-smtp' ),
-			esc_html__( 'New SMTP password', 'viazen-mailersend-smtp' ),
+			esc_attr__( 'A saved SMTP password is set.', 'smtp-connector-for-mailersend' ),
+			esc_html__( 'Change password', 'smtp-connector-for-mailersend' ),
+			esc_html__( 'New SMTP password', 'smtp-connector-for-mailersend' ),
 			esc_attr( self::OPTION_SETTINGS ),
-			esc_html__( 'Enter a new password to replace the saved password. Leaving this blank keeps the saved password.', 'viazen-mailersend-smtp' )
+			esc_html__( 'Enter a new password to replace the saved password. Leaving this blank keeps the saved password.', 'smtp-connector-for-mailersend' )
 		);
 	}
 
@@ -455,7 +455,7 @@ final class Plugin {
 	 */
 	public static function render_settings_page(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You are not allowed to manage these settings.', 'viazen-mailersend-smtp' ) );
+			wp_die( esc_html__( 'You are not allowed to manage these settings.', 'smtp-connector-for-mailersend' ) );
 		}
 		?>
 		<div class="wrap viazen-mailersend-smtp-settings">
@@ -466,7 +466,7 @@ final class Plugin {
 			<form action="options.php" method="post">
 				<?php settings_fields( self::SETTINGS_GROUP ); ?>
 				<?php do_settings_sections( self::PAGE_SLUG ); ?>
-				<?php submit_button( esc_html__( 'Save Settings', 'viazen-mailersend-smtp' ) ); ?>
+				<?php submit_button( esc_html__( 'Save Settings', 'smtp-connector-for-mailersend' ) ); ?>
 			</form>
 
 			<?php self::render_credential_check(); ?>
@@ -475,14 +475,14 @@ final class Plugin {
 			<?php self::render_contact_form_7_guidance(); ?>
 
 			<hr>
-			<h2><?php esc_html_e( 'Send Test Email', 'viazen-mailersend-smtp' ); ?></h2>
-			<p><?php esc_html_e( 'This calls WordPress wp_mail() and follows the same SMTP path as Contact Form 7.', 'viazen-mailersend-smtp' ); ?></p>
+			<h2><?php esc_html_e( 'Send Test Email', 'smtp-connector-for-mailersend' ); ?></h2>
+			<p><?php esc_html_e( 'This calls WordPress wp_mail() and follows the same SMTP path as Contact Form 7.', 'smtp-connector-for-mailersend' ); ?></p>
 			<form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
 				<input type="hidden" name="action" value="viazen_mailersend_smtp_send_test">
 				<?php wp_nonce_field( self::TEST_NONCE_ACTION ); ?>
-				<label for="viazen-mailersend-smtp-recipient"><strong><?php esc_html_e( 'Recipient email', 'viazen-mailersend-smtp' ); ?></strong></label><br>
+				<label for="viazen-mailersend-smtp-recipient"><strong><?php esc_html_e( 'Recipient email', 'smtp-connector-for-mailersend' ); ?></strong></label><br>
 				<input type="email" class="regular-text" id="viazen-mailersend-smtp-recipient" name="recipient_email" required>
-				<?php submit_button( esc_html__( 'Send Test Email', 'viazen-mailersend-smtp' ), 'secondary', 'submit', false ); ?>
+				<?php submit_button( esc_html__( 'Send Test Email', 'smtp-connector-for-mailersend' ), 'secondary', 'submit', false ); ?>
 			</form>
 
 			<hr>
@@ -505,29 +505,29 @@ final class Plugin {
 		$status          = $has_credentials && is_string( $stored_status ) ? $stored_status : '';
 
 		if ( 'valid' === $status ) {
-			$status_label = __( 'Valid', 'viazen-mailersend-smtp' );
+			$status_label = __( 'Valid', 'smtp-connector-for-mailersend' );
 			$status_class = 'viazen-mailersend-smtp-credential-status--valid';
 		} elseif ( 'invalid' === $status ) {
-			$status_label = __( 'Not valid', 'viazen-mailersend-smtp' );
+			$status_label = __( 'Not valid', 'smtp-connector-for-mailersend' );
 			$status_class = 'viazen-mailersend-smtp-credential-status--invalid';
 		} else {
-			$status_label = __( 'Not checked', 'viazen-mailersend-smtp' );
+			$status_label = __( 'Not checked', 'smtp-connector-for-mailersend' );
 			$status_class = 'viazen-mailersend-smtp-credential-status--unchecked';
 		}
 		?>
 		<hr>
-		<h2><?php esc_html_e( 'Credential check', 'viazen-mailersend-smtp' ); ?></h2>
+		<h2><?php esc_html_e( 'Credential check', 'smtp-connector-for-mailersend' ); ?></h2>
 		<div class="viazen-mailersend-smtp-credential-status <?php echo esc_attr( $status_class ); ?>" role="status">
-			<span class="viazen-mailersend-smtp-credential-status__label"><?php esc_html_e( 'Credential status', 'viazen-mailersend-smtp' ); ?></span>
+			<span class="viazen-mailersend-smtp-credential-status__label"><?php esc_html_e( 'Credential status', 'smtp-connector-for-mailersend' ); ?></span>
 			<strong class="viazen-mailersend-smtp-credential-status__value"><?php echo esc_html( $status_label ); ?></strong>
 		</div>
 		<form class="viazen-mailersend-smtp-credential-check-form" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
 			<input type="hidden" name="action" value="viazen_mailersend_smtp_check_credentials">
 			<?php wp_nonce_field( self::CREDENTIAL_CHECK_NONCE_ACTION ); ?>
-			<button type="submit" class="button button-secondary"<?php disabled( ! $has_credentials ); ?>><?php esc_html_e( 'Check credentials', 'viazen-mailersend-smtp' ); ?></button>
+			<button type="submit" class="button button-secondary"<?php disabled( ! $has_credentials ); ?>><?php esc_html_e( 'Check credentials', 'smtp-connector-for-mailersend' ); ?></button>
 		</form>
 		<?php if ( ! $has_credentials ) : ?>
-			<p class="description"><?php esc_html_e( 'Save credentials before checking.', 'viazen-mailersend-smtp' ); ?></p>
+			<p class="description"><?php esc_html_e( 'Save credentials before checking.', 'smtp-connector-for-mailersend' ); ?></p>
 		<?php endif; ?>
 		<?php
 	}
@@ -549,9 +549,9 @@ final class Plugin {
 				<input type="hidden" name="action" value="viazen_mailersend_smtp_dismiss_donation">
 				<?php wp_nonce_field( self::DONATION_DISMISS_NONCE_ACTION ); ?>
 				<p>
-					<a href="<?php echo esc_url( self::DONATE_URL ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Support this plugin via PayPal', 'viazen-mailersend-smtp' ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'viazen-mailersend-smtp' ); ?></span></a>
+					<a href="<?php echo esc_url( self::DONATE_URL ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Support this plugin via PayPal', 'smtp-connector-for-mailersend' ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'smtp-connector-for-mailersend' ); ?></span></a>
 					<span aria-hidden="true"> &middot; </span>
-					<button type="submit" class="button-link"><?php esc_html_e( 'Dismiss', 'viazen-mailersend-smtp' ); ?></button>
+					<button type="submit" class="button-link"><?php esc_html_e( 'Dismiss', 'smtp-connector-for-mailersend' ); ?></button>
 				</p>
 			</form>
 		</div>
@@ -580,12 +580,12 @@ final class Plugin {
 	 */
 	private static function render_contact_form_7_guidance(): void {
 		$settings     = self::get_settings();
-		$example_name = '' !== $settings['from_name'] ? $settings['from_name'] : __( 'Website Name', 'viazen-mailersend-smtp' );
+		$example_name = '' !== $settings['from_name'] ? $settings['from_name'] : __( 'Website Name', 'smtp-connector-for-mailersend' );
 		$example_mail = is_email( $settings['from_email'] ) ? $settings['from_email'] : 'forms@example.com';
 		$from_example = sprintf( '%1$s <%2$s>', $example_name, $example_mail );
 		?>
-		<h2><?php esc_html_e( 'Contact Form 7', 'viazen-mailersend-smtp' ); ?></h2>
-		<p><?php esc_html_e( 'Use the configured sender for From and the visitor email for Reply-To.', 'viazen-mailersend-smtp' ); ?></p>
+		<h2><?php esc_html_e( 'Contact Form 7', 'smtp-connector-for-mailersend' ); ?></h2>
+		<p><?php esc_html_e( 'Use the configured sender for From and the visitor email for Reply-To.', 'smtp-connector-for-mailersend' ); ?></p>
 		<pre><?php echo esc_html( "From:\n{$from_example}\n\nReply-To:\n[your-email]" ); ?></pre>
 		<?php
 	}
@@ -606,8 +606,8 @@ final class Plugin {
 			self::redirect_with_notice( 'invalid-recipient' );
 		}
 
-		$subject = __( 'SMTP Connector for MailerSend test email', 'viazen-mailersend-smtp' );
-		$message = __( 'This test email was sent through WordPress wp_mail() using the SMTP Connector for MailerSend plugin.', 'viazen-mailersend-smtp' );
+		$subject = __( 'SMTP Connector for MailerSend test email', 'smtp-connector-for-mailersend' );
+		$message = __( 'This test email was sent through WordPress wp_mail() using the SMTP Connector for MailerSend plugin.', 'smtp-connector-for-mailersend' );
 		$sent    = wp_mail(
 			$recipient,
 			$subject,
@@ -710,15 +710,15 @@ final class Plugin {
 	private static function render_diagnostic(): void {
 		$diagnostic = get_option( self::OPTION_DIAGNOSTIC, array() );
 
-		echo '<h2>' . esc_html__( 'Latest diagnostic result', 'viazen-mailersend-smtp' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Latest diagnostic result', 'smtp-connector-for-mailersend' ) . '</h2>';
 
 		if ( ! is_array( $diagnostic ) || empty( $diagnostic['status'] ) ) {
-			echo '<p>' . esc_html__( 'No mail result has been recorded.', 'viazen-mailersend-smtp' ) . '</p>';
+			echo '<p>' . esc_html__( 'No mail result has been recorded.', 'smtp-connector-for-mailersend' ) . '</p>';
 			return;
 		}
 
 		$stored_status   = is_string( $diagnostic['status'] ) ? $diagnostic['status'] : 'failure';
-		$status          = 'success' === $stored_status ? __( 'Success', 'viazen-mailersend-smtp' ) : __( 'Failure', 'viazen-mailersend-smtp' );
+		$status          = 'success' === $stored_status ? __( 'Success', 'smtp-connector-for-mailersend' ) : __( 'Failure', 'smtp-connector-for-mailersend' );
 		$category        = isset( $diagnostic['category'] ) && is_string( $diagnostic['category'] ) ? sanitize_key( $diagnostic['category'] ) : 'general-failure';
 		$meaning         = self::get_diagnostic_category_label( $category );
 		$timestamp_value = $diagnostic['timestamp'] ?? 0;
@@ -735,20 +735,20 @@ final class Plugin {
 		?>
 		<table class="widefat striped" role="presentation">
 			<tbody>
-				<tr><th scope="row"><?php esc_html_e( 'Result', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $status ); ?></td></tr>
-				<tr><th scope="row"><?php esc_html_e( 'Meaning', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $meaning ); ?></td></tr>
-				<tr><th scope="row"><?php esc_html_e( 'Date and time', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $date ); ?></td></tr>
-				<tr><th scope="row"><?php esc_html_e( 'Recipient', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $recipient ); ?></td></tr>
-				<tr><th scope="row"><?php esc_html_e( 'Subject', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $subject ); ?></td></tr>
+				<tr><th scope="row"><?php esc_html_e( 'Result', 'smtp-connector-for-mailersend' ); ?></th><td><?php echo esc_html( $status ); ?></td></tr>
+				<tr><th scope="row"><?php esc_html_e( 'Meaning', 'smtp-connector-for-mailersend' ); ?></th><td><?php echo esc_html( $meaning ); ?></td></tr>
+				<tr><th scope="row"><?php esc_html_e( 'Date and time', 'smtp-connector-for-mailersend' ); ?></th><td><?php echo esc_html( $date ); ?></td></tr>
+				<tr><th scope="row"><?php esc_html_e( 'Recipient', 'smtp-connector-for-mailersend' ); ?></th><td><?php echo esc_html( $recipient ); ?></td></tr>
+				<tr><th scope="row"><?php esc_html_e( 'Subject', 'smtp-connector-for-mailersend' ); ?></th><td><?php echo esc_html( $subject ); ?></td></tr>
 				<?php if ( 'failure' === $stored_status && '' !== $error ) : ?>
-					<tr><th scope="row"><?php esc_html_e( 'Error', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $error ); ?></td></tr>
+					<tr><th scope="row"><?php esc_html_e( 'Error', 'smtp-connector-for-mailersend' ); ?></th><td><?php echo esc_html( $error ); ?></td></tr>
 				<?php endif; ?>
 			</tbody>
 		</table>
 		<form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
 			<input type="hidden" name="action" value="viazen_mailersend_smtp_clear_diagnostic">
 			<?php wp_nonce_field( self::CLEAR_NONCE_ACTION ); ?>
-			<?php submit_button( esc_html__( 'Clear diagnostic result', 'viazen-mailersend-smtp' ), 'secondary' ); ?>
+			<?php submit_button( esc_html__( 'Clear diagnostic result', 'smtp-connector-for-mailersend' ), 'secondary' ); ?>
 		</form>
 		<?php
 	}
@@ -811,12 +811,12 @@ final class Plugin {
 	 */
 	private static function get_diagnostic_category_label( string $category ): string {
 		$labels = array(
-			'transport-accepted'     => __( 'WordPress handed the message to the configured mail transport successfully. This does not prove final inbox delivery.', 'viazen-mailersend-smtp' ),
-			'authentication-failure' => __( 'SMTP authentication failure.', 'viazen-mailersend-smtp' ),
-			'connection-failure'     => __( 'SMTP connection failure.', 'viazen-mailersend-smtp' ),
-			'invalid-from'           => __( 'Invalid From address.', 'viazen-mailersend-smtp' ),
-			'transport-rejection'    => __( 'The configured mail transport rejected the message.', 'viazen-mailersend-smtp' ),
-			'general-failure'        => __( 'General wp_mail() failure.', 'viazen-mailersend-smtp' ),
+			'transport-accepted'     => __( 'WordPress handed the message to the configured mail transport successfully. This does not prove final inbox delivery.', 'smtp-connector-for-mailersend' ),
+			'authentication-failure' => __( 'SMTP authentication failure.', 'smtp-connector-for-mailersend' ),
+			'connection-failure'     => __( 'SMTP connection failure.', 'smtp-connector-for-mailersend' ),
+			'invalid-from'           => __( 'Invalid From address.', 'smtp-connector-for-mailersend' ),
+			'transport-rejection'    => __( 'The configured mail transport rejected the message.', 'smtp-connector-for-mailersend' ),
+			'general-failure'        => __( 'General wp_mail() failure.', 'smtp-connector-for-mailersend' ),
 		);
 
 		return $labels[ $category ] ?? $labels['general-failure'];
@@ -914,7 +914,7 @@ final class Plugin {
 	 */
 	private static function require_settings_access(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You are not allowed to manage these settings.', 'viazen-mailersend-smtp' ) );
+			wp_die( esc_html__( 'You are not allowed to manage these settings.', 'smtp-connector-for-mailersend' ) );
 		}
 	}
 
@@ -959,13 +959,13 @@ final class Plugin {
 		}
 
 		$notices = array(
-			'invalid-recipient'   => array( 'error', __( 'Enter a valid recipient email address.', 'viazen-mailersend-smtp' ) ),
-			'test-success'        => array( 'success', __( 'WordPress handed the test email to the configured mail transport successfully. This does not prove final inbox delivery.', 'viazen-mailersend-smtp' ) ),
-			'test-failure'        => array( 'error', __( 'Test email failed. Review the latest diagnostic result below.', 'viazen-mailersend-smtp' ) ),
-			'credentials-missing' => array( 'error', __( 'Save an SMTP username and password before checking credentials.', 'viazen-mailersend-smtp' ) ),
-			'credentials-valid'   => array( 'success', __( 'The saved SMTP credentials are valid.', 'viazen-mailersend-smtp' ) ),
-			'credentials-invalid' => array( 'error', __( 'The saved SMTP credentials are not valid.', 'viazen-mailersend-smtp' ) ),
-			'diagnostic-cleared'  => array( 'success', __( 'Diagnostic result cleared.', 'viazen-mailersend-smtp' ) ),
+			'invalid-recipient'   => array( 'error', __( 'Enter a valid recipient email address.', 'smtp-connector-for-mailersend' ) ),
+			'test-success'        => array( 'success', __( 'WordPress handed the test email to the configured mail transport successfully. This does not prove final inbox delivery.', 'smtp-connector-for-mailersend' ) ),
+			'test-failure'        => array( 'error', __( 'Test email failed. Review the latest diagnostic result below.', 'smtp-connector-for-mailersend' ) ),
+			'credentials-missing' => array( 'error', __( 'Save an SMTP username and password before checking credentials.', 'smtp-connector-for-mailersend' ) ),
+			'credentials-valid'   => array( 'success', __( 'The saved SMTP credentials are valid.', 'smtp-connector-for-mailersend' ) ),
+			'credentials-invalid' => array( 'error', __( 'The saved SMTP credentials are not valid.', 'smtp-connector-for-mailersend' ) ),
+			'diagnostic-cleared'  => array( 'success', __( 'Diagnostic result cleared.', 'smtp-connector-for-mailersend' ) ),
 		);
 
 		if ( ! isset( $notices[ $notice ] ) ) {

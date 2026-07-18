@@ -151,7 +151,7 @@ namespace {
 	$class::enqueue_admin_assets( 'settings_page_viazen-mailersend-smtp' );
 	$admin_style = $GLOBALS['viazen_test_styles']['viazen-mailersend-smtp-admin'] ?? array();
 	viazen_assert( str_ends_with( $admin_style['src'] ?? '', '/assets/css/admin-settings.css' ), 'Admin stylesheet URL is incorrect.' );
-	viazen_assert( '1.0.2' === ( $admin_style['version'] ?? '' ), 'Admin stylesheet version is incorrect.' );
+	viazen_assert( '1.0.3' === ( $admin_style['version'] ?? '' ), 'Admin stylesheet version is incorrect.' );
 
 	ob_start();
 	$class::render_username_field();

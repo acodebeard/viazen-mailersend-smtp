@@ -7,10 +7,12 @@ readme_file="${project_root}/readme.txt"
 changelog_file="${project_root}/CHANGELOG.md"
 admin_css_file="${project_root}/assets/css/admin-settings.css"
 published_title='SMTP Connector for MailerSend'
+published_slug='smtp-connector-for-mailersend'
 
 plugin_version="$(sed -n 's/^ \* Version:[[:space:]]*//p' "${plugin_file}")"
 stable_tag="$(sed -n 's/^Stable tag:[[:space:]]*//p' "${readme_file}")"
 plugin_title="$(sed -n 's/^ \* Plugin Name:[[:space:]]*//p' "${plugin_file}")"
+text_domain="$(sed -n 's/^ \* Text Domain:[[:space:]]*//p' "${plugin_file}")"
 
 if [[ -z "${plugin_version}" || "${plugin_version}" != "${stable_tag}" ]]; then
 	printf 'Plugin Version and readme Stable tag do not match.\n' >&2
@@ -21,6 +23,12 @@ if [[ "${plugin_title}" != "${published_title}" ]] || \
 	! grep -Fqx "=== ${published_title} ===" "${readme_file}" || \
 	! grep -Fqx "# ${published_title}" "${project_root}/README.md"; then
 	printf 'The publishable plugin title is missing or inconsistent.\n' >&2
+	exit 1
+fi
+
+if [[ "${text_domain}" != "${published_slug}" ]] || \
+	grep -Fq ", 'viazen-mailersend-smtp' )" "${plugin_file}"; then
+	printf 'The translation text domain does not match the WordPress.org slug.\n' >&2
 	exit 1
 fi
 
@@ -75,4 +83,4 @@ for required_line in "${required_readme_lines[@]}"; do
 	fi
 done
 
-printf 'Version, standalone-content, attribution, and donation checks passed.\n'
+printf 'Version, text-domain, standalone-content, attribution, and donation checks passed.\n'

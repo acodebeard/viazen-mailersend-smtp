@@ -5,7 +5,7 @@ Tags: smtp, email, mailersend, contact form 7
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -43,6 +43,10 @@ trademark of MailerSend, Inc.; the name is used only to identify compatibility.
 4. Enter the MailerSend SMTP username and password.
 5. Enter a verified From email and the desired From name, then save.
 6. Send a test email from the same settings page.
+
+To update an existing legacy installation, upload the new
+`viazen-mailersend-smtp.zip` and select Replace current with uploaded. Do not
+delete the existing plugin first; replacement preserves its saved credentials.
 
 For Contact Form 7, use a sender on the MailerSend-verified domain and keep the
 visitor address in Reply-To. For example:
@@ -168,6 +172,11 @@ Deactivation preserves plugin settings. Deleting the plugin through WordPress
 removes its settings, credential-check status, and latest diagnostic result.
 
 == Changelog ==
+
+= 1.0.3 =
+
+* Matched the translation text domain to the WordPress.org plugin slug.
+* Added an automated in-place update check that confirms saved credentials remain intact.
 
 = 1.0.2 =
 

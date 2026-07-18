@@ -72,4 +72,5 @@ jobs:
         with:
           build-dir: ./build/viazen-mailersend-smtp
           repo-token: ''
+          slug: smtp-connector-for-mailersend
           strict: true
