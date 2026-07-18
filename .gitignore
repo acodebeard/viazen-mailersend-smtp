@@ -1,0 +1,7 @@
+/dist/
+/vendor/
+/.phpunit.result.cache
+/.phpcs-cache
+/.phpstan-cache
+*.log
+.DS_Store

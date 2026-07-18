@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<ruleset name="Viazen MailerSend SMTP">
+	<description>WordPress coding standards for the plugin source and tests.</description>
+
+	<config name="installed_paths" value="vendor/phpcsstandards/phpcsextra,vendor/phpcsstandards/phpcsutils,vendor/wp-coding-standards/wpcs"/>
+	<config name="minimum_supported_wp_version" value="6.5"/>
+
+	<arg name="extensions" value="php"/>
+	<arg name="parallel" value="8"/>
+	<arg value="p"/>
+
+	<file>viazen-mailersend-smtp.php</file>
+	<file>uninstall.php</file>
+
+	<rule ref="WordPress-Core"/>
+	<rule ref="WordPress-Docs"/>
+	<rule ref="WordPress-Extra"/>
+
+	<rule ref="WordPress.Files.FileName.InvalidClassFileName">
+		<exclude-pattern>viazen-mailersend-smtp.php</exclude-pattern>
+	</rule>
+</ruleset>

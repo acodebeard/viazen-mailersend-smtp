@@ -1,0 +1,40 @@
+{
+  "name": "acodebeard/viazen-mailersend-smtp",
+  "description": "Development tooling for the independent Viazen MailerSend SMTP WordPress plugin.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "authors": [
+    {
+      "name": "acodebeard",
+      "homepage": "https://github.com/acodebeard"
+    }
+  ],
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": false
+    },
+    "sort-packages": true
+  },
+  "require": {
+    "php": ">=8.1"
+  },
+  "require-dev": {
+    "php-stubs/wordpress-stubs": "^7.0",
+    "phpstan/phpstan": "^2.2",
+    "wp-coding-standards/wpcs": "^3.3"
+  },
+  "scripts": {
+    "metadata": "scripts/check-metadata.sh",
+    "phpcs": "phpcs --standard=phpcs.xml.dist",
+    "phpstan": "phpstan analyse --configuration phpstan.neon --no-progress",
+    "test": "php tests/smoke.php",
+    "package": "scripts/build-release.sh",
+    "check": [
+      "@metadata",
+      "@phpcs",
+      "@phpstan",
+      "@test",
+      "@package"
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build GitHub release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.1'
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run project checks
+        run: composer check
+
+      - name: Verify release version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          plugin_version="$(sed -n 's/^ \* Version:[[:space:]]*//p' viazen-mailersend-smtp.php)"
+          stable_tag="$(sed -n 's/^Stable tag:[[:space:]]*//p' readme.txt)"
+          test "${version}" = "${plugin_version}"
+          test "${version}" = "${stable_tag}"
+
+      - name: Publish release archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "${RELEASE_TAG}" "dist/viazen-mailersend-smtp.zip#Installable WordPress plugin" --verify-tag --generate-notes

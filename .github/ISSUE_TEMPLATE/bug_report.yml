@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a reproducible problem with the plugin.
+title: "Bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include SMTP usernames, passwords, private message bodies, or private headers. MailerSend account, billing, DNS, and service problems belong with MailerSend support.
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      placeholder: 1.0.1
+    validations:
+      required: true
+  - type: input
+    id: wordpress-version
+    attributes:
+      label: WordPress version
+    validations:
+      required: true
+  - type: input
+    id: php-version
+    attributes:
+      label: PHP version
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Explain what happened without sharing credentials or private mail content.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostic
+    attributes:
+      label: Sanitized latest diagnostic
+      description: Include only Result, Meaning, Date, Recipient, Subject, and the already-sanitized Error shown by the plugin.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Sensitive information check
+      options:
+        - label: I removed SMTP credentials and private message content.
+          required: true

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/acodebeard/viazen-mailersend-smtp/security/advisories/new
+    about: Report security problems privately without including SMTP credentials.
+  - name: MailerSend service support
+    url: https://www.mailersend.com/help
+    about: Contact MailerSend for account, billing, DNS, availability, and delivery support.
