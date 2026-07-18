@@ -33,6 +33,14 @@ For a published version, download `viazen-mailersend-smtp.zip` from the matching
 GitHub Release. In WordPress Admin, open **Plugins > Add New Plugin > Upload
 Plugin**, upload the ZIP, and activate it.
 
+Existing manual installations can use the same upload screen and select
+**Replace current with uploaded**. The GitHub package retains the legacy
+`viazen-mailersend-smtp` folder for this in-place upgrade path, while its public
+WordPress.org slug and translation text domain are
+`smtp-connector-for-mailersend`. Internal option names remain unchanged, so a
+normal replacement preserves saved credentials. Do not delete the existing
+plugin before replacing it because uninstall intentionally removes its options.
+
 Then open **Settings > SMTP Connector for MailerSend**, enter the SMTP credentials and a
 verified sender, save, run **Check credentials**, and use **Send Test Email**
 before testing forms.
@@ -87,7 +95,8 @@ WP_PATH=/opt/lampp/htdocs/sandbox scripts/test-sandbox.sh
 ```
 
 It installs the ZIP normally, without a symlink, and verifies Plugin Check,
-PHPMailer configuration, headers, diagnostics, deactivation, and uninstall.
+in-place credential preservation, PHPMailer configuration, headers,
+diagnostics, deactivation, and uninstall.
 
 ## Independent project and trademarks
 

@@ -4,6 +4,11 @@ All notable changes to SMTP Connector for MailerSend are documented here.
 
 ## Unreleased
 
+## [1.0.3] - 2026-07-17
+
+- Match the translation text domain to the WordPress.org slug `smtp-connector-for-mailersend`.
+- Verify that normal ZIP replacement preserves the existing SMTP username, password, sender, credential status, and diagnostic.
+
 ## [1.0.2] - 2026-07-17
 
 - Raised PHPStan analysis from level 6 to level 10 without suppressions or a baseline.

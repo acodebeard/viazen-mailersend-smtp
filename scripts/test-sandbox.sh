@@ -3,6 +3,7 @@ set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 plugin_slug="viazen-mailersend-smtp"
+published_slug="smtp-connector-for-mailersend"
 wp_bin="${WP_BIN:-wp}"
 wp_path="${WP_PATH:-/opt/lampp/htdocs/sandbox}"
 wp_user="${WP_USER:-}"
@@ -36,7 +37,7 @@ restore_clean_plugin() {
 
 run_plugin_check() {
 	local output
-	output="$("${wp[@]}" plugin check "${plugin_slug}" --mode=new --format=strict-table 2>&1)"
+	output="$("${wp[@]}" plugin check "${plugin_slug}" --slug="${published_slug}" --mode=new --format=strict-table 2>&1)"
 	printf '%s\n' "${output}"
 	if grep -Eq '(^|[[:space:]])ERROR([[:space:]]|$)' <<< "${output}"; then
 		printf 'WordPress Plugin Check reported an error.\n' >&2
@@ -47,7 +48,10 @@ run_plugin_check() {
 trap restore_clean_plugin EXIT
 
 "${project_root}/scripts/build-release.sh"
+"${wp[@]}" eval-file "${project_root}/tests/wp-update-setup.php"
 "${wp[@]}" plugin install "${archive}" --force --activate
+"${wp[@]}" eval-file "${project_root}/tests/wp-update-preserved.php"
+"${wp[@]}" eval-file "${project_root}/tests/wp-clean-state.php"
 
 plugin_dir="$("${wp[@]}" eval 'echo WP_PLUGIN_DIR;')/${plugin_slug}"
 if [[ -L "${plugin_dir}" ]]; then
@@ -83,4 +87,4 @@ for file in "${plugin_slug}.php" uninstall.php readme.txt LICENSE; do
 done
 
 trap - EXIT
-printf 'Sandbox integration, lifecycle, Plugin Check, and ZIP installation passed.\n'
+printf 'Sandbox update preservation, integration, lifecycle, Plugin Check, and ZIP installation passed.\n'
