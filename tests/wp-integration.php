@@ -38,7 +38,17 @@ viazen_wp_assert( PHP_INT_MAX === has_filter( 'wp_mail_from', array( Plugin::cla
 viazen_wp_assert( PHP_INT_MAX === has_filter( 'wp_mail_from_name', array( Plugin::class, 'filter_from_name' ) ), 'wp_mail_from_name hook is missing or has the wrong priority.' );
 viazen_wp_assert( false !== has_action( 'wp_mail_failed', array( Plugin::class, 'record_failure' ) ), 'wp_mail_failed hook is missing.' );
 viazen_wp_assert( false !== has_action( 'wp_mail_succeeded', array( Plugin::class, 'record_success' ) ), 'wp_mail_succeeded hook is missing.' );
+viazen_wp_assert( false !== has_action( 'admin_enqueue_scripts', array( Plugin::class, 'enqueue_admin_assets' ) ), 'Admin stylesheet hook is missing.' );
 viazen_wp_assert( false !== has_action( 'admin_post_viazen_mailersend_smtp_dismiss_donation', array( Plugin::class, 'handle_dismiss_donation' ) ), 'Donation dismissal hook is missing.' );
+
+wp_dequeue_style( 'viazen-mailersend-smtp-admin' );
+Plugin::enqueue_admin_assets( 'settings_page_other-plugin' );
+viazen_wp_assert( ! wp_style_is( 'viazen-mailersend-smtp-admin', 'enqueued' ), 'Admin stylesheet loaded on an unrelated page.' );
+Plugin::enqueue_admin_assets( 'settings_page_viazen-mailersend-smtp' );
+viazen_wp_assert( wp_style_is( 'viazen-mailersend-smtp-admin', 'enqueued' ), 'Admin stylesheet did not load on the plugin page.' );
+$admin_style = wp_styles()->registered['viazen-mailersend-smtp-admin'] ?? null;
+viazen_wp_assert( null !== $admin_style && str_ends_with( $admin_style->src, '/assets/css/admin-settings.css' ), 'Admin stylesheet URL is incorrect.' );
+wp_dequeue_style( 'viazen-mailersend-smtp-admin' );
 
 $mailer = new WP_PHPMailer( true );
 $mailer->addReplyTo( 'visitor@example.com', 'Visitor' );

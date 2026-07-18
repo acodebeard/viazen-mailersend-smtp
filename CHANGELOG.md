@@ -8,6 +8,7 @@ All notable changes to Viazen MailerSend SMTP are documented here.
 - Hardened request, option, and diagnostic handling against unexpected value types.
 - Show the saved SMTP username and provide an accessible password-replacement disclosure without exposing the saved password.
 - Add an optional PayPal support link to the standard WordPress metadata and this plugin's settings page.
+- Add scoped spacing to settings-page link-style controls.
 
 ## [1.0.1] - 2026-07-17
 

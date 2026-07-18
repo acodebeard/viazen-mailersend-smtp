@@ -73,6 +73,7 @@ the replacement field blank preserves the saved password.
 * `wp_mail_succeeded` stores the latest success result.
 * `admin_menu` adds Settings > MailerSend SMTP.
 * `admin_init` registers fields through the WordPress Settings API.
+* `admin_enqueue_scripts` loads the small stylesheet only on this plugin's settings page.
 * `admin_notices` warns administrators when a known mail-routing plugin is also active.
 * `admin_post_viazen_mailersend_smtp_send_test` securely handles test email requests.
 * `admin_post_viazen_mailersend_smtp_clear_diagnostic` securely clears the latest result.

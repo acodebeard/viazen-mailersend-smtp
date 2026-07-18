@@ -33,6 +33,7 @@ namespace {
 		),
 	);
 	$GLOBALS['viazen_test_user_meta'] = array();
+	$GLOBALS['viazen_test_styles'] = array();
 
 	function add_action() {}
 	function add_filter() {}
@@ -55,6 +56,10 @@ namespace {
 	function wp_nonce_field() { echo '<input type="hidden" name="_wpnonce" value="test-nonce">'; }
 	function get_current_user_id() { return 1; }
 	function get_user_meta( $user_id, $key ) { return $GLOBALS['viazen_test_user_meta'][ $user_id ][ $key ] ?? ''; }
+	function plugin_dir_url() { return 'https://example.test/wp-content/plugins/viazen-mailersend-smtp/'; }
+	function wp_enqueue_style( $handle, $src, $dependencies, $version ) {
+		$GLOBALS['viazen_test_styles'][ $handle ] = compact( 'src', 'dependencies', 'version' );
+	}
 
 	class WP_Error {
 		private string $message;
@@ -89,6 +94,13 @@ namespace {
 	viazen_assert( 20 === $mailer->Timeout && 0 === $mailer->SMTPDebug, 'Timeout or debug setting mismatch.' );
 	viazen_assert( 'sender@example.test' === $class::filter_from_email( 'other@example.test' ), 'From email was not overridden.' );
 	viazen_assert( 'Viazen Sender' === $class::filter_from_name( 'Other Sender' ), 'From name was not overridden.' );
+
+	$class::enqueue_admin_assets( 'settings_page_other-plugin' );
+	viazen_assert( array() === $GLOBALS['viazen_test_styles'], 'Admin stylesheet loaded on an unrelated page.' );
+	$class::enqueue_admin_assets( 'settings_page_viazen-mailersend-smtp' );
+	$admin_style = $GLOBALS['viazen_test_styles']['viazen-mailersend-smtp-admin'] ?? array();
+	viazen_assert( str_ends_with( $admin_style['src'] ?? '', '/assets/css/admin-settings.css' ), 'Admin stylesheet URL is incorrect.' );
+	viazen_assert( '1.0.1' === ( $admin_style['version'] ?? '' ), 'Admin stylesheet version is incorrect.' );
 
 	ob_start();
 	$class::render_username_field();

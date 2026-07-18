@@ -32,6 +32,9 @@ final class Plugin {
 	/** Plugin settings option. */
 	private const OPTION_SETTINGS = 'viazen_mailersend_smtp_settings';
 
+	/** Plugin version used for cache-safe admin assets. */
+	private const VERSION = '1.0.1';
+
 	/** Most recent mail result option. */
 	private const OPTION_DIAGNOSTIC = 'viazen_mailersend_smtp_diagnostic';
 
@@ -87,6 +90,7 @@ final class Plugin {
 
 		add_action( 'admin_menu', array( self::class, 'add_settings_page' ) );
 		add_action( 'admin_init', array( self::class, 'register_settings' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_admin_assets' ) );
 		add_action( 'admin_notices', array( self::class, 'render_conflict_notice' ) );
 		add_action( 'admin_post_viazen_mailersend_smtp_send_test', array( self::class, 'handle_send_test' ) );
 		add_action( 'admin_post_viazen_mailersend_smtp_clear_diagnostic', array( self::class, 'handle_clear_diagnostic' ) );
@@ -166,6 +170,25 @@ final class Plugin {
 			'manage_options',
 			self::PAGE_SLUG,
 			array( self::class, 'render_settings_page' )
+		);
+	}
+
+	/**
+	 * Loads the small settings stylesheet only on this plugin's admin page.
+	 *
+	 * @param string $hook_suffix Current admin page hook suffix.
+	 * @return void
+	 */
+	public static function enqueue_admin_assets( string $hook_suffix ): void {
+		if ( 'settings_page_' . self::PAGE_SLUG !== $hook_suffix ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'viazen-mailersend-smtp-admin',
+			plugin_dir_url( __FILE__ ) . 'assets/css/admin-settings.css',
+			array(),
+			self::VERSION
 		);
 	}
 
@@ -419,7 +442,7 @@ final class Plugin {
 			wp_die( esc_html__( 'You are not allowed to manage these settings.', 'viazen-mailersend-smtp' ) );
 		}
 		?>
-		<div class="wrap">
+		<div class="wrap viazen-mailersend-smtp-settings">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 			<?php self::render_action_notice(); ?>
 			<?php settings_errors(); ?>
