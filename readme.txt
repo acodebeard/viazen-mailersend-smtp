@@ -1,10 +1,11 @@
-=== Viazen MailerSend SMTP ===
+=== SMTP Connector for MailerSend ===
 Contributors: acodebeard
+Donate link: https://paypal.me/acodebeard
 Tags: smtp, email, mailersend, contact form 7
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,7 +13,7 @@ Routes all WordPress wp_mail() messages through authenticated MailerSend SMTP.
 
 == Description ==
 
-Viazen MailerSend SMTP is a deliberately small, independent SMTP transport.
+SMTP Connector for MailerSend is a deliberately small, independent SMTP transport.
 It configures the PHPMailer copy already included with WordPress and does not
 use the MailerSend API, external libraries, telemetry, advertising, or remote
 services other than the configured SMTP connection used to send mail.
@@ -29,10 +30,6 @@ The configured From email and From name override values supplied by other
 plugins. Reply-To, CC, BCC, HTML content type, message content, and attachments
 are not changed.
 
-This plugin does not add, edit, remove, or validate DNS records. MailerSend
-authentication records and records used by an existing email provider remain
-separate DNS configuration and are not removed on plugin uninstall.
-
 This is an independent community project maintained by acodebeard. It is not
 the official MailerSend WordPress plugin and is not affiliated with, endorsed
 by, sponsored by, or supported by MailerSend, Inc. MailerSend is a product and
@@ -41,8 +38,8 @@ trademark of MailerSend, Inc.; the name is used only to identify compatibility.
 == Installation ==
 
 1. Upload `viazen-mailersend-smtp.zip` through Plugins > Add New Plugin > Upload Plugin.
-2. Activate Viazen MailerSend SMTP.
-3. Open Settings > MailerSend SMTP.
+2. Activate SMTP Connector for MailerSend.
+3. Open Settings > SMTP Connector for MailerSend.
 4. Enter the MailerSend SMTP username and password.
 5. Enter a verified From email and the desired From name, then save.
 6. Send a test email from the same settings page.
@@ -54,13 +51,21 @@ visitor address in Reply-To. For example:
 
 `Reply-To: [your-email]`
 
-Keep the official MailerSend WordPress plugin deactivated. Running multiple
-SMTP plugins can cause more than one plugin to configure the same PHPMailer
-instance, producing order-dependent and unpredictable results.
+Keep DNS records required by MailerSend and by your existing email provider while those services remain in use.
+This plugin does not add, edit, remove, or validate DNS records.
+Keep other SMTP plugins, including the official MailerSend WordPress plugin, deactivated so they cannot configure the same PHPMailer instance.
 
-The saved SMTP username and password are never rendered back into the settings
-page. Leave either credential field blank to keep its saved value, or enter a
-new value to replace it.
+Running multiple SMTP plugins can cause more than one plugin to configure the
+same PHPMailer instance, producing order-dependent and unpredictable results.
+
+The saved SMTP username remains visible and editable. The saved password never
+enters the settings-page HTML; a fixed six-character mask shows that it exists,
+and a small disclosure reveals a blank replacement field when needed. Leaving
+the replacement field blank preserves the saved password.
+
+The credential check connects to MailerSend and authenticates without sending
+an email. It stores only valid or not valid. It never stores or displays the
+SMTP response or an error transcript.
 
 == Hooks used ==
 
@@ -69,13 +74,24 @@ new value to replace it.
 * `wp_mail_from_name` forces the configured From name.
 * `wp_mail_failed` stores the latest redacted failure result.
 * `wp_mail_succeeded` stores the latest success result.
-* `admin_menu` adds Settings > MailerSend SMTP.
+* `admin_menu` adds Settings > SMTP Connector for MailerSend.
 * `admin_init` registers fields through the WordPress Settings API.
+* `admin_enqueue_scripts` loads the small stylesheet only on this plugin's settings page.
 * `admin_notices` warns administrators when a known mail-routing plugin is also active.
 * `admin_post_viazen_mailersend_smtp_send_test` securely handles test email requests.
+* `admin_post_viazen_mailersend_smtp_check_credentials` securely checks saved SMTP credentials without sending email.
 * `admin_post_viazen_mailersend_smtp_clear_diagnostic` securely clears the latest result.
+* `admin_post_viazen_mailersend_smtp_dismiss_donation` securely saves a user's dismissal of the settings-page support link.
 
 == Manual testing ==
+
+= SMTP credential check =
+
+1. Save valid MailerSend SMTP credentials.
+2. Select Check credentials and confirm the status changes to Valid.
+3. Save an intentionally incorrect password, check again, and confirm the status changes to Not valid.
+4. Confirm the page source and stored option contain no SMTP response, username, or password.
+5. Restore and recheck the valid credentials.
 
 = Plugin test email =
 
@@ -149,9 +165,16 @@ transcripts are never stored by this plugin.
 
 Use Clear diagnostic result on the settings page to delete the stored result.
 Deactivation preserves plugin settings. Deleting the plugin through WordPress
-removes its settings and latest diagnostic result.
+removes its settings, credential-check status, and latest diagnostic result.
 
 == Changelog ==
+
+= 1.0.2 =
+
+* Added a non-sending SMTP credential check with a prominent valid or not-valid status.
+* Improved saved-credential controls without exposing the saved SMTP password.
+* Adopted the publishable plugin title and added an optional dismissible support link.
+* Raised project static analysis to PHPStan level 10.
 
 = 1.0.1 =
 

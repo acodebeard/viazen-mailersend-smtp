@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<ruleset name="Viazen MailerSend SMTP">
+<ruleset name="SMTP Connector for MailerSend">
 	<description>WordPress coding standards for the plugin source and tests.</description>
 
 	<config name="installed_paths" value="vendor/phpcsstandards/phpcsextra,vendor/phpcsstandards/phpcsutils,vendor/wp-coding-standards/wpcs"/>

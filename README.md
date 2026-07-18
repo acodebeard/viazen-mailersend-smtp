@@ -1,4 +1,4 @@
-# Viazen MailerSend SMTP
+# SMTP Connector for MailerSend
 
 An independent WordPress plugin that routes every normal `wp_mail()` message
 through MailerSend SMTP. That includes WordPress core messages, Contact Form 7,
@@ -12,6 +12,7 @@ advertising, or a general-purpose mail log.
 
 - Authenticated STARTTLS through `smtp.mailersend.net` on port 587.
 - A single mail path for core, plugin, form, and test messages.
+- A quick SMTP authentication check that sends no email and stores only valid or not valid.
 - Configured From email and name override unsafe sender values.
 - Reply-To, CC, BCC, HTML content, message bodies, and attachments remain intact.
 - The saved SMTP password is never rendered back into admin HTML.
@@ -32,8 +33,9 @@ For a published version, download `viazen-mailersend-smtp.zip` from the matching
 GitHub Release. In WordPress Admin, open **Plugins > Add New Plugin > Upload
 Plugin**, upload the ZIP, and activate it.
 
-Then open **Settings > MailerSend SMTP**, enter the SMTP credentials and a
-verified sender, save, and use **Send Test Email** before testing forms.
+Then open **Settings > SMTP Connector for MailerSend**, enter the SMTP credentials and a
+verified sender, save, run **Check credentials**, and use **Send Test Email**
+before testing forms.
 
 For Contact Form 7, use a verified-domain address in From and put the visitor's
 address in Reply-To:
@@ -70,6 +72,9 @@ composer install
 composer check
 scripts/build-release.sh
 ```
+
+PHPStan runs at level 10 as part of `composer check`; the project does not use
+a PHPStan baseline or ignored findings.
 
 The installable archive is written to `dist/viazen-mailersend-smtp.zip` and is
 not committed to the source repository.

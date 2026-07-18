@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name:       Viazen MailerSend SMTP
+ * Plugin Name:       SMTP Connector for MailerSend
  * Plugin URI:        https://github.com/acodebeard/viazen-mailersend-smtp
  * Description:       Independent integration that routes WordPress email through MailerSend SMTP.
- * Version:           1.0.1
+ * Version:           1.0.2
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            acodebeard
@@ -32,8 +32,14 @@ final class Plugin {
 	/** Plugin settings option. */
 	private const OPTION_SETTINGS = 'viazen_mailersend_smtp_settings';
 
+	/** Plugin version used for cache-safe admin assets. */
+	private const VERSION = '1.0.2';
+
 	/** Most recent mail result option. */
 	private const OPTION_DIAGNOSTIC = 'viazen_mailersend_smtp_diagnostic';
+
+	/** Most recent SMTP credential check result. */
+	private const OPTION_CREDENTIAL_STATUS = 'viazen_mailersend_smtp_credential_status';
 
 	/** Settings group used by the Settings API. */
 	private const SETTINGS_GROUP = 'viazen_mailersend_smtp';
@@ -47,8 +53,20 @@ final class Plugin {
 	/** Nonce action for diagnostic clearing. */
 	private const CLEAR_NONCE_ACTION = 'viazen_mailersend_smtp_clear_diagnostic';
 
+	/** Nonce action for SMTP credential checks. */
+	private const CREDENTIAL_CHECK_NONCE_ACTION = 'viazen_mailersend_smtp_check_credentials';
+
 	/** Nonce action for one-time action notices. */
 	private const NOTICE_NONCE_ACTION = 'viazen_mailersend_smtp_notice';
+
+	/** Optional support link shown only on this plugin's settings page. */
+	private const DONATE_URL = 'https://paypal.me/acodebeard';
+
+	/** Nonce action for dismissing the settings-page support link. */
+	private const DONATION_DISMISS_NONCE_ACTION = 'viazen_mailersend_smtp_dismiss_donation';
+
+	/** Per-user record for a dismissed settings-page support link. */
+	private const DONATION_DISMISSED_META = 'viazen_mailersend_smtp_donation_dismissed';
 
 	/**
 	 * Conservative list of plugins known to configure SMTP or mail routing.
@@ -78,9 +96,12 @@ final class Plugin {
 
 		add_action( 'admin_menu', array( self::class, 'add_settings_page' ) );
 		add_action( 'admin_init', array( self::class, 'register_settings' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_admin_assets' ) );
 		add_action( 'admin_notices', array( self::class, 'render_conflict_notice' ) );
 		add_action( 'admin_post_viazen_mailersend_smtp_send_test', array( self::class, 'handle_send_test' ) );
+		add_action( 'admin_post_viazen_mailersend_smtp_check_credentials', array( self::class, 'handle_check_credentials' ) );
 		add_action( 'admin_post_viazen_mailersend_smtp_clear_diagnostic', array( self::class, 'handle_clear_diagnostic' ) );
+		add_action( 'admin_post_viazen_mailersend_smtp_dismiss_donation', array( self::class, 'handle_dismiss_donation' ) );
 	}
 
 	/**
@@ -91,6 +112,7 @@ final class Plugin {
 	public static function activate(): void {
 		add_option( self::OPTION_SETTINGS, self::get_default_settings(), '', false );
 		add_option( self::OPTION_DIAGNOSTIC, array(), '', false );
+		add_option( self::OPTION_CREDENTIAL_STATUS, '', '', false );
 	}
 
 	/**
@@ -145,17 +167,36 @@ final class Plugin {
 	}
 
 	/**
-	 * Adds Settings > MailerSend SMTP.
+	 * Adds Settings > SMTP Connector for MailerSend.
 	 *
 	 * @return void
 	 */
 	public static function add_settings_page(): void {
 		add_options_page(
-			esc_html__( 'MailerSend SMTP', 'viazen-mailersend-smtp' ),
-			esc_html__( 'MailerSend SMTP', 'viazen-mailersend-smtp' ),
+			esc_html__( 'SMTP Connector for MailerSend', 'viazen-mailersend-smtp' ),
+			esc_html__( 'SMTP Connector for MailerSend', 'viazen-mailersend-smtp' ),
 			'manage_options',
 			self::PAGE_SLUG,
 			array( self::class, 'render_settings_page' )
+		);
+	}
+
+	/**
+	 * Loads the small settings stylesheet only on this plugin's admin page.
+	 *
+	 * @param string $hook_suffix Current admin page hook suffix.
+	 * @return void
+	 */
+	public static function enqueue_admin_assets( string $hook_suffix ): void {
+		if ( 'settings_page_' . self::PAGE_SLUG !== $hook_suffix ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'viazen-mailersend-smtp-admin',
+			plugin_dir_url( __FILE__ ) . 'assets/css/admin-settings.css',
+			array(),
+			self::VERSION
 		);
 	}
 
@@ -230,25 +271,29 @@ final class Plugin {
 	 * @return array<string, string>
 	 */
 	public static function sanitize_settings( $input ): array {
-		$existing = self::get_settings();
-		$clean    = $existing;
-		$input    = is_array( $input ) ? wp_unslash( $input ) : array();
+		$existing            = self::get_settings();
+		$clean               = $existing;
+		$credentials_changed = false;
+		$input               = is_array( $input ) ? wp_unslash( $input ) : array();
 
-		if ( isset( $input['smtp_username'] ) ) {
-			$username = trim( sanitize_text_field( (string) $input['smtp_username'] ) );
+		if ( isset( $input['smtp_username'] ) && is_string( $input['smtp_username'] ) ) {
+			$username = self::limit_text( trim( sanitize_text_field( $input['smtp_username'] ) ), 320 );
 			if ( '' !== $username ) {
-				$clean['smtp_username'] = self::limit_text( $username, 320 );
+				$clean['smtp_username'] = $username;
+				$credentials_changed    = $username !== $existing['smtp_username'];
 			}
 		}
 
-		if ( isset( $input['smtp_password'] ) && '' !== (string) $input['smtp_password'] ) {
-			$password = preg_replace( '/[\x00-\x1F\x7F]/', '', (string) $input['smtp_password'] );
+		if ( isset( $input['smtp_password'] ) && is_string( $input['smtp_password'] ) && '' !== $input['smtp_password'] ) {
+			$password = preg_replace( '/[\x00-\x1F\x7F]/', '', $input['smtp_password'] );
 			if ( is_string( $password ) && '' !== $password ) {
-				$clean['smtp_password'] = self::limit_text( $password, 1024, false );
+				$password               = self::limit_text( $password, 1024, false );
+				$clean['smtp_password'] = $password;
+				$credentials_changed    = $credentials_changed || $password !== $existing['smtp_password'];
 			}
 		}
 
-		$submitted_email = isset( $input['from_email'] ) ? trim( (string) $input['from_email'] ) : '';
+		$submitted_email = isset( $input['from_email'] ) && is_string( $input['from_email'] ) ? trim( $input['from_email'] ) : '';
 		$from_email      = sanitize_email( $submitted_email );
 		if ( '' !== $from_email && is_email( $from_email ) ) {
 			$clean['from_email'] = $from_email;
@@ -260,7 +305,7 @@ final class Plugin {
 			);
 		}
 
-		$from_name = isset( $input['from_name'] ) ? trim( sanitize_text_field( (string) $input['from_name'] ) ) : '';
+		$from_name = isset( $input['from_name'] ) && is_string( $input['from_name'] ) ? trim( sanitize_text_field( $input['from_name'] ) ) : '';
 		if ( '' !== $from_name ) {
 			$clean['from_name'] = self::limit_text( $from_name, 200 );
 		} else {
@@ -269,6 +314,10 @@ final class Plugin {
 				'viazen_mailersend_smtp_invalid_from_name',
 				esc_html__( 'Enter a From name.', 'viazen-mailersend-smtp' )
 			);
+		}
+
+		if ( $credentials_changed ) {
+			delete_option( self::OPTION_CREDENTIAL_STATUS );
 		}
 
 		return $clean;
@@ -324,30 +373,48 @@ final class Plugin {
 	}
 
 	/**
-	 * Renders a blank SMTP username replacement field.
+	 * Renders the saved SMTP username for review or replacement.
 	 *
 	 * @return void
 	 */
 	public static function render_username_field(): void {
+		$settings = self::get_settings();
+
 		printf(
-			'<input type="text" class="regular-text" id="viazen-mailersend-smtp-username" name="%1$s[smtp_username]" autocomplete="off" spellcheck="false"><p class="description">%2$s</p>',
+			'<input type="text" class="regular-text" id="viazen-mailersend-smtp-username" name="%1$s[smtp_username]" value="%2$s" autocomplete="off" spellcheck="false"><p class="description">%3$s</p>',
 			esc_attr( self::OPTION_SETTINGS ),
-			esc_html__( 'Enter a new username to replace the saved username. Leave blank to keep the saved username.', 'viazen-mailersend-smtp' )
+			esc_attr( $settings['smtp_username'] ),
+			esc_html__( 'The SMTP username currently used to authenticate with MailerSend.', 'viazen-mailersend-smtp' )
 		);
 	}
 
 	/**
-	 * Renders a blank SMTP password replacement field.
+	 * Renders password status and a blank replacement field when requested.
 	 *
-	 * No value attribute is output, so the saved password cannot enter HTML.
+	 * The six-character value is a fixed visual mask, not the saved password.
+	 * The saved password never enters the generated HTML.
 	 *
 	 * @return void
 	 */
 	public static function render_password_field(): void {
+		$settings = self::get_settings();
+
+		if ( '' === $settings['smtp_password'] ) {
+			printf(
+				'<input type="password" class="regular-text" id="viazen-mailersend-smtp-password" name="%1$s[smtp_password]" autocomplete="new-password" spellcheck="false"><p class="description">%2$s</p>',
+				esc_attr( self::OPTION_SETTINGS ),
+				esc_html__( 'Enter the SMTP password supplied by MailerSend.', 'viazen-mailersend-smtp' )
+			);
+			return;
+		}
+
 		printf(
-			'<input type="password" class="regular-text" id="viazen-mailersend-smtp-password" name="%1$s[smtp_password]" autocomplete="new-password" spellcheck="false"><p class="description">%2$s</p>',
+			'<input type="password" class="regular-text" id="viazen-mailersend-smtp-password-saved" value="000000" disabled autocomplete="off" aria-label="%1$s"><details><summary class="button-link">%2$s</summary><p><label class="screen-reader-text" for="viazen-mailersend-smtp-password">%3$s</label><input type="password" class="regular-text" id="viazen-mailersend-smtp-password" name="%4$s[smtp_password]" autocomplete="new-password" spellcheck="false" aria-describedby="viazen-mailersend-smtp-password-description"></p><p class="description" id="viazen-mailersend-smtp-password-description">%5$s</p></details>',
+			esc_attr__( 'A saved SMTP password is set.', 'viazen-mailersend-smtp' ),
+			esc_html__( 'Change password', 'viazen-mailersend-smtp' ),
+			esc_html__( 'New SMTP password', 'viazen-mailersend-smtp' ),
 			esc_attr( self::OPTION_SETTINGS ),
-			esc_html__( 'Enter a new password to replace the saved password. Leave blank to keep the saved password.', 'viazen-mailersend-smtp' )
+			esc_html__( 'Enter a new password to replace the saved password. Leaving this blank keeps the saved password.', 'viazen-mailersend-smtp' )
 		);
 	}
 
@@ -391,7 +458,7 @@ final class Plugin {
 			wp_die( esc_html__( 'You are not allowed to manage these settings.', 'viazen-mailersend-smtp' ) );
 		}
 		?>
-		<div class="wrap">
+		<div class="wrap viazen-mailersend-smtp-settings">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 			<?php self::render_action_notice(); ?>
 			<?php settings_errors(); ?>
@@ -401,6 +468,8 @@ final class Plugin {
 				<?php do_settings_sections( self::PAGE_SLUG ); ?>
 				<?php submit_button( esc_html__( 'Save Settings', 'viazen-mailersend-smtp' ) ); ?>
 			</form>
+
+			<?php self::render_credential_check(); ?>
 
 			<hr>
 			<?php self::render_contact_form_7_guidance(); ?>
@@ -418,12 +487,94 @@ final class Plugin {
 
 			<hr>
 			<?php self::render_diagnostic(); ?>
+
+			<?php self::render_donation_link(); ?>
 		</div>
 		<?php
 	}
 
 	/**
-	 * Renders site-specific Contact Form 7 and DNS guidance.
+	 * Renders the latest SMTP authentication result and check action.
+	 *
+	 * @return void
+	 */
+	public static function render_credential_check(): void {
+		$settings        = self::get_settings();
+		$has_credentials = '' !== $settings['smtp_username'] && '' !== $settings['smtp_password'];
+		$stored_status   = get_option( self::OPTION_CREDENTIAL_STATUS, '' );
+		$status          = $has_credentials && is_string( $stored_status ) ? $stored_status : '';
+
+		if ( 'valid' === $status ) {
+			$status_label = __( 'Valid', 'viazen-mailersend-smtp' );
+			$status_class = 'viazen-mailersend-smtp-credential-status--valid';
+		} elseif ( 'invalid' === $status ) {
+			$status_label = __( 'Not valid', 'viazen-mailersend-smtp' );
+			$status_class = 'viazen-mailersend-smtp-credential-status--invalid';
+		} else {
+			$status_label = __( 'Not checked', 'viazen-mailersend-smtp' );
+			$status_class = 'viazen-mailersend-smtp-credential-status--unchecked';
+		}
+		?>
+		<hr>
+		<h2><?php esc_html_e( 'Credential check', 'viazen-mailersend-smtp' ); ?></h2>
+		<div class="viazen-mailersend-smtp-credential-status <?php echo esc_attr( $status_class ); ?>" role="status">
+			<span class="viazen-mailersend-smtp-credential-status__label"><?php esc_html_e( 'Credential status', 'viazen-mailersend-smtp' ); ?></span>
+			<strong class="viazen-mailersend-smtp-credential-status__value"><?php echo esc_html( $status_label ); ?></strong>
+		</div>
+		<form class="viazen-mailersend-smtp-credential-check-form" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
+			<input type="hidden" name="action" value="viazen_mailersend_smtp_check_credentials">
+			<?php wp_nonce_field( self::CREDENTIAL_CHECK_NONCE_ACTION ); ?>
+			<button type="submit" class="button button-secondary"<?php disabled( ! $has_credentials ); ?>><?php esc_html_e( 'Check credentials', 'viazen-mailersend-smtp' ); ?></button>
+		</form>
+		<?php if ( ! $has_credentials ) : ?>
+			<p class="description"><?php esc_html_e( 'Save credentials before checking.', 'viazen-mailersend-smtp' ); ?></p>
+		<?php endif; ?>
+		<?php
+	}
+
+	/**
+	 * Renders a restrained support link on this plugin's settings page.
+	 *
+	 * @return void
+	 */
+	public static function render_donation_link(): void {
+		$user_id = get_current_user_id();
+		if ( 0 < $user_id && '1' === get_user_meta( $user_id, self::DONATION_DISMISSED_META, true ) ) {
+			return;
+		}
+		?>
+		<hr>
+		<div class="notice notice-info inline">
+			<form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
+				<input type="hidden" name="action" value="viazen_mailersend_smtp_dismiss_donation">
+				<?php wp_nonce_field( self::DONATION_DISMISS_NONCE_ACTION ); ?>
+				<p>
+					<a href="<?php echo esc_url( self::DONATE_URL ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Support this plugin via PayPal', 'viazen-mailersend-smtp' ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'viazen-mailersend-smtp' ); ?></span></a>
+					<span aria-hidden="true"> &middot; </span>
+					<button type="submit" class="button-link"><?php esc_html_e( 'Dismiss', 'viazen-mailersend-smtp' ); ?></button>
+				</p>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Persists dismissal of the settings-page support link for one user.
+	 *
+	 * @return never
+	 */
+	public static function handle_dismiss_donation() {
+		self::require_settings_access();
+		check_admin_referer( self::DONATION_DISMISS_NONCE_ACTION );
+		update_user_meta( get_current_user_id(), self::DONATION_DISMISSED_META, '1' );
+
+		$url = add_query_arg( 'page', self::PAGE_SLUG, admin_url( 'options-general.php' ) );
+		wp_safe_redirect( $url );
+		exit;
+	}
+
+	/**
+	 * Renders concise Contact Form 7 guidance.
 	 *
 	 * @return void
 	 */
@@ -433,14 +584,9 @@ final class Plugin {
 		$example_mail = is_email( $settings['from_email'] ) ? $settings['from_email'] : 'forms@example.com';
 		$from_example = sprintf( '%1$s <%2$s>', $example_name, $example_mail );
 		?>
-		<h2><?php esc_html_e( 'Contact Form 7 configuration', 'viazen-mailersend-smtp' ); ?></h2>
-		<p><?php esc_html_e( 'Use the MailerSend-verified domain for From. Put the visitor address in Reply-To, never in From.', 'viazen-mailersend-smtp' ); ?></p>
+		<h2><?php esc_html_e( 'Contact Form 7', 'viazen-mailersend-smtp' ); ?></h2>
+		<p><?php esc_html_e( 'Use the configured sender for From and the visitor email for Reply-To.', 'viazen-mailersend-smtp' ); ?></p>
 		<pre><?php echo esc_html( "From:\n{$from_example}\n\nReply-To:\n[your-email]" ); ?></pre>
-		<ul>
-			<li><?php esc_html_e( 'Keep DNS records required by MailerSend and by your existing email provider while those services remain in use.', 'viazen-mailersend-smtp' ); ?></li>
-			<li><?php esc_html_e( 'This plugin does not add, edit, remove, or validate DNS records.', 'viazen-mailersend-smtp' ); ?></li>
-			<li><?php esc_html_e( 'Keep other SMTP plugins, including the official MailerSend WordPress plugin, deactivated so they cannot configure the same PHPMailer instance.', 'viazen-mailersend-smtp' ); ?></li>
-		</ul>
 		<?php
 	}
 
@@ -453,13 +599,15 @@ final class Plugin {
 		self::require_settings_access();
 		check_admin_referer( self::TEST_NONCE_ACTION );
 
-		$recipient = isset( $_POST['recipient_email'] ) ? sanitize_email( wp_unslash( $_POST['recipient_email'] ) ) : '';
+		$recipient = isset( $_POST['recipient_email'] ) && is_string( $_POST['recipient_email'] )
+			? sanitize_email( wp_unslash( $_POST['recipient_email'] ) )
+			: '';
 		if ( ! is_email( $recipient ) ) {
 			self::redirect_with_notice( 'invalid-recipient' );
 		}
 
-		$subject = __( 'Viazen MailerSend SMTP test email', 'viazen-mailersend-smtp' );
-		$message = __( 'This test email was sent through WordPress wp_mail() using the Viazen MailerSend SMTP plugin.', 'viazen-mailersend-smtp' );
+		$subject = __( 'SMTP Connector for MailerSend test email', 'viazen-mailersend-smtp' );
+		$message = __( 'This test email was sent through WordPress wp_mail() using the SMTP Connector for MailerSend plugin.', 'viazen-mailersend-smtp' );
 		$sent    = wp_mail(
 			$recipient,
 			$subject,
@@ -468,6 +616,52 @@ final class Plugin {
 		);
 
 		self::redirect_with_notice( $sent ? 'test-success' : 'test-failure' );
+	}
+
+	/**
+	 * Checks the saved SMTP credentials after nonce and capability checks.
+	 *
+	 * @return never
+	 */
+	public static function handle_check_credentials() {
+		self::require_settings_access();
+		check_admin_referer( self::CREDENTIAL_CHECK_NONCE_ACTION );
+
+		$settings = self::get_settings();
+		if ( '' === $settings['smtp_username'] || '' === $settings['smtp_password'] ) {
+			delete_option( self::OPTION_CREDENTIAL_STATUS );
+			self::redirect_with_notice( 'credentials-missing' );
+		}
+
+		$is_valid = self::check_smtp_credentials();
+		update_option( self::OPTION_CREDENTIAL_STATUS, $is_valid ? 'valid' : 'invalid', false );
+		self::redirect_with_notice( $is_valid ? 'credentials-valid' : 'credentials-invalid' );
+	}
+
+	/**
+	 * Connects and authenticates without sending a message.
+	 *
+	 * Errors are intentionally discarded so credentials and SMTP internals
+	 * cannot enter notices, logs, URLs, or stored diagnostics.
+	 *
+	 * @return bool Whether the SMTP server accepted the saved credentials.
+	 */
+	public static function check_smtp_credentials(): bool {
+		$mailer = null;
+
+		try {
+			self::load_phpmailer();
+			$mailer = new PHPMailer( true );
+			self::configure_phpmailer( $mailer );
+
+			return $mailer->smtpConnect();
+		} catch ( \Throwable ) {
+			return false;
+		} finally {
+			if ( $mailer instanceof PHPMailer ) {
+				$mailer->smtpClose();
+			}
+		}
 	}
 
 	/**
@@ -523,14 +717,21 @@ final class Plugin {
 			return;
 		}
 
-		$status    = 'success' === $diagnostic['status'] ? __( 'Success', 'viazen-mailersend-smtp' ) : __( 'Failure', 'viazen-mailersend-smtp' );
-		$category  = isset( $diagnostic['category'] ) ? sanitize_key( $diagnostic['category'] ) : 'general-failure';
-		$meaning   = self::get_diagnostic_category_label( $category );
-		$timestamp = isset( $diagnostic['timestamp'] ) ? absint( $diagnostic['timestamp'] ) : 0;
-		$date      = $timestamp ? wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp, wp_timezone() ) : '';
-		$recipient = isset( $diagnostic['recipient'] ) ? (string) $diagnostic['recipient'] : '';
-		$subject   = isset( $diagnostic['subject'] ) ? (string) $diagnostic['subject'] : '';
-		$error     = isset( $diagnostic['error'] ) ? (string) $diagnostic['error'] : '';
+		$stored_status   = is_string( $diagnostic['status'] ) ? $diagnostic['status'] : 'failure';
+		$status          = 'success' === $stored_status ? __( 'Success', 'viazen-mailersend-smtp' ) : __( 'Failure', 'viazen-mailersend-smtp' );
+		$category        = isset( $diagnostic['category'] ) && is_string( $diagnostic['category'] ) ? sanitize_key( $diagnostic['category'] ) : 'general-failure';
+		$meaning         = self::get_diagnostic_category_label( $category );
+		$timestamp_value = $diagnostic['timestamp'] ?? 0;
+		$timestamp       = is_int( $timestamp_value ) || is_string( $timestamp_value ) ? absint( $timestamp_value ) : 0;
+		$date_format     = get_option( 'date_format', 'F j, Y' );
+		$date_format     = is_string( $date_format ) ? $date_format : 'F j, Y';
+		$time_format     = get_option( 'time_format', 'g:i a' );
+		$time_format     = is_string( $time_format ) ? $time_format : 'g:i a';
+		$formatted_date  = $timestamp ? wp_date( $date_format . ' ' . $time_format, $timestamp, wp_timezone() ) : '';
+		$date            = is_string( $formatted_date ) ? $formatted_date : '';
+		$recipient       = isset( $diagnostic['recipient'] ) && is_string( $diagnostic['recipient'] ) ? $diagnostic['recipient'] : '';
+		$subject         = isset( $diagnostic['subject'] ) && is_string( $diagnostic['subject'] ) ? $diagnostic['subject'] : '';
+		$error           = isset( $diagnostic['error'] ) && is_string( $diagnostic['error'] ) ? $diagnostic['error'] : '';
 		?>
 		<table class="widefat striped" role="presentation">
 			<tbody>
@@ -539,7 +740,7 @@ final class Plugin {
 				<tr><th scope="row"><?php esc_html_e( 'Date and time', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $date ); ?></td></tr>
 				<tr><th scope="row"><?php esc_html_e( 'Recipient', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $recipient ); ?></td></tr>
 				<tr><th scope="row"><?php esc_html_e( 'Subject', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $subject ); ?></td></tr>
-				<?php if ( 'failure' === $diagnostic['status'] && '' !== $error ) : ?>
+				<?php if ( 'failure' === $stored_status && '' !== $error ) : ?>
 					<tr><th scope="row"><?php esc_html_e( 'Error', 'viazen-mailersend-smtp' ); ?></th><td><?php echo esc_html( $error ); ?></td></tr>
 				<?php endif; ?>
 			</tbody>
@@ -555,9 +756,9 @@ final class Plugin {
 	/**
 	 * Stores only the diagnostic fields explicitly allowed by the plugin.
 	 *
-	 * @param string               $status    Success or failure.
-	 * @param array<string, mixed> $mail_data Selected wp_mail() metadata source.
-	 * @param string               $error     Failure message, if available.
+	 * @param string       $status    Success or failure.
+	 * @param array<mixed> $mail_data Selected wp_mail() metadata source.
+	 * @param string       $error     Failure message, if available.
 	 * @return void
 	 */
 	private static function store_diagnostic( string $status, array $mail_data, string $error ): void {
@@ -567,7 +768,7 @@ final class Plugin {
 			'category'  => $category,
 			'timestamp' => time(),
 			'recipient' => self::sanitize_recipients( $mail_data['to'] ?? '' ),
-			'subject'   => self::limit_text( sanitize_text_field( (string) ( $mail_data['subject'] ?? '' ) ), 500 ),
+			'subject'   => self::limit_text( sanitize_text_field( isset( $mail_data['subject'] ) && is_string( $mail_data['subject'] ) ? $mail_data['subject'] : '' ), 500 ),
 			'error'     => 'failure' === $status ? self::sanitize_error_message( $error ) : '',
 		);
 
@@ -747,6 +948,10 @@ final class Plugin {
 			return;
 		}
 
+		if ( ! is_string( $_GET['viazen_mailersend_smtp_notice'] ) || ! is_string( $_GET['viazen_mailersend_smtp_notice_n'] ) ) {
+			return;
+		}
+
 		$notice = sanitize_key( wp_unslash( $_GET['viazen_mailersend_smtp_notice'] ) );
 		$nonce  = sanitize_text_field( wp_unslash( $_GET['viazen_mailersend_smtp_notice_n'] ) );
 		if ( ! wp_verify_nonce( $nonce, self::NOTICE_NONCE_ACTION ) ) {
@@ -754,10 +959,13 @@ final class Plugin {
 		}
 
 		$notices = array(
-			'invalid-recipient'  => array( 'error', __( 'Enter a valid recipient email address.', 'viazen-mailersend-smtp' ) ),
-			'test-success'       => array( 'success', __( 'WordPress handed the test email to the configured mail transport successfully. This does not prove final inbox delivery.', 'viazen-mailersend-smtp' ) ),
-			'test-failure'       => array( 'error', __( 'Test email failed. Review the latest diagnostic result below.', 'viazen-mailersend-smtp' ) ),
-			'diagnostic-cleared' => array( 'success', __( 'Diagnostic result cleared.', 'viazen-mailersend-smtp' ) ),
+			'invalid-recipient'   => array( 'error', __( 'Enter a valid recipient email address.', 'viazen-mailersend-smtp' ) ),
+			'test-success'        => array( 'success', __( 'WordPress handed the test email to the configured mail transport successfully. This does not prove final inbox delivery.', 'viazen-mailersend-smtp' ) ),
+			'test-failure'        => array( 'error', __( 'Test email failed. Review the latest diagnostic result below.', 'viazen-mailersend-smtp' ) ),
+			'credentials-missing' => array( 'error', __( 'Save an SMTP username and password before checking credentials.', 'viazen-mailersend-smtp' ) ),
+			'credentials-valid'   => array( 'success', __( 'The saved SMTP credentials are valid.', 'viazen-mailersend-smtp' ) ),
+			'credentials-invalid' => array( 'error', __( 'The saved SMTP credentials are not valid.', 'viazen-mailersend-smtp' ) ),
+			'diagnostic-cleared'  => array( 'success', __( 'Diagnostic result cleared.', 'viazen-mailersend-smtp' ) ),
 		);
 
 		if ( ! isset( $notices[ $notice ] ) ) {
@@ -772,15 +980,38 @@ final class Plugin {
 	}
 
 	/**
+	 * Loads the PHPMailer classes bundled with WordPress when needed.
+	 *
+	 * @return void
+	 */
+	private static function load_phpmailer(): void {
+		if ( ! class_exists( \PHPMailer\PHPMailer\Exception::class, false ) ) {
+			require_once ABSPATH . WPINC . '/PHPMailer/Exception.php';
+		}
+		if ( ! class_exists( \PHPMailer\PHPMailer\SMTP::class, false ) ) {
+			require_once ABSPATH . WPINC . '/PHPMailer/SMTP.php';
+		}
+		if ( ! class_exists( PHPMailer::class, false ) ) {
+			require_once ABSPATH . WPINC . '/PHPMailer/PHPMailer.php';
+		}
+	}
+
+	/**
 	 * Returns settings merged with safe defaults.
 	 *
 	 * @return array{smtp_username:string, smtp_password:string, from_email:string, from_name:string}
 	 */
 	private static function get_settings(): array {
-		$stored = get_option( self::OPTION_SETTINGS, array() );
-		$stored = is_array( $stored ) ? $stored : array();
+		$stored  = get_option( self::OPTION_SETTINGS, array() );
+		$stored  = is_array( $stored ) ? $stored : array();
+		$default = self::get_default_settings();
 
-		return array_merge( self::get_default_settings(), array_intersect_key( $stored, self::get_default_settings() ) );
+		return array(
+			'smtp_username' => isset( $stored['smtp_username'] ) && is_string( $stored['smtp_username'] ) ? $stored['smtp_username'] : $default['smtp_username'],
+			'smtp_password' => isset( $stored['smtp_password'] ) && is_string( $stored['smtp_password'] ) ? $stored['smtp_password'] : $default['smtp_password'],
+			'from_email'    => isset( $stored['from_email'] ) && is_string( $stored['from_email'] ) ? $stored['from_email'] : $default['from_email'],
+			'from_name'     => isset( $stored['from_name'] ) && is_string( $stored['from_name'] ) ? $stored['from_name'] : $default['from_name'],
+		);
 	}
 
 	/**
@@ -789,7 +1020,8 @@ final class Plugin {
 	 * @return array{smtp_username:string, smtp_password:string, from_email:string, from_name:string}
 	 */
 	private static function get_default_settings(): array {
-		$admin_email = sanitize_email( (string) get_option( 'admin_email', '' ) );
+		$admin_email = get_option( 'admin_email', '' );
+		$admin_email = is_string( $admin_email ) ? sanitize_email( $admin_email ) : '';
 
 		return array(
 			'smtp_username' => '',

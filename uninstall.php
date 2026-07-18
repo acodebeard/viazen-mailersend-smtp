@@ -1,6 +1,6 @@
 <?php
 /**
- * Uninstall Viazen MailerSend SMTP.
+ * Uninstall SMTP Connector for MailerSend.
  *
  * @package ViazenMailerSendSmtp
  */
@@ -11,3 +11,5 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 delete_option( 'viazen_mailersend_smtp_settings' );
 delete_option( 'viazen_mailersend_smtp_diagnostic' );
+delete_option( 'viazen_mailersend_smtp_credential_status' );
+delete_metadata( 'user', 0, 'viazen_mailersend_smtp_donation_dismissed', '', true );

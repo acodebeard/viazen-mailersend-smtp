@@ -7,6 +7,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	define( 'ABSPATH', __DIR__ . '/' );
 }
 
+if ( ! defined( 'WPINC' ) ) {
+	define( 'WPINC', 'wp-includes' );
+}
+
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	define( 'WP_UNINSTALL_PLUGIN', true );
 }

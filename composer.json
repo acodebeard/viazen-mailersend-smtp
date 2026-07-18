@@ -1,6 +1,6 @@
 {
   "name": "acodebeard/viazen-mailersend-smtp",
-  "description": "Development tooling for the independent Viazen MailerSend SMTP WordPress plugin.",
+  "description": "Development tooling for the independent SMTP Connector for MailerSend WordPress plugin.",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "authors": [

@@ -15,7 +15,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "${stage_dir}/${plugin_slug}" "$(dirname "${output_path}")"
+mkdir -p "${stage_dir}/${plugin_slug}/assets/css" "$(dirname "${output_path}")"
 
 for file in "${plugin_slug}.php" uninstall.php readme.txt LICENSE; do
 	if [[ ! -f "${project_root}/${file}" ]]; then
@@ -25,6 +25,8 @@ for file in "${plugin_slug}.php" uninstall.php readme.txt LICENSE; do
 	cp "${project_root}/${file}" "${stage_dir}/${plugin_slug}/${file}"
 done
 
+cp "${project_root}/assets/css/admin-settings.css" "${stage_dir}/${plugin_slug}/assets/css/admin-settings.css"
+
 find "${stage_dir}" -exec touch -h -d "@${source_date_epoch}" {} +
 
 rm -f "${output_path}"
@@ -32,6 +34,9 @@ rm -f "${output_path}"
 	cd "${stage_dir}"
 	zip -q -X -9 "${output_path}" \
 		"${plugin_slug}/" \
+		"${plugin_slug}/assets/" \
+		"${plugin_slug}/assets/css/" \
+		"${plugin_slug}/assets/css/admin-settings.css" \
 		"${plugin_slug}/LICENSE" \
 		"${plugin_slug}/readme.txt" \
 		"${plugin_slug}/uninstall.php" \
@@ -44,7 +49,8 @@ for entry in \
 	"${plugin_slug}/${plugin_slug}.php" \
 	"${plugin_slug}/uninstall.php" \
 	"${plugin_slug}/readme.txt" \
-	"${plugin_slug}/LICENSE"; do
+	"${plugin_slug}/LICENSE" \
+	"${plugin_slug}/assets/css/admin-settings.css"; do
 	if ! unzip -Z1 "${output_path}" | grep -Fqx "${entry}"; then
 		printf 'Release archive is missing: %s\n' "${entry}" >&2
 		exit 1
