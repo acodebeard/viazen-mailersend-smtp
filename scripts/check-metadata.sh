@@ -59,4 +59,16 @@ if ! grep -Fqx $'\tdisplay: inline-block;' "${admin_css_file}" || \
 	exit 1
 fi
 
+required_readme_lines=(
+	'Keep DNS records required by MailerSend and by your existing email provider while those services remain in use.'
+	'This plugin does not add, edit, remove, or validate DNS records.'
+	'Keep other SMTP plugins, including the official MailerSend WordPress plugin, deactivated so they cannot configure the same PHPMailer instance.'
+)
+for required_line in "${required_readme_lines[@]}"; do
+	if ! grep -Fqx "${required_line}" "${readme_file}"; then
+		printf 'Required MailerSend configuration guidance is missing from readme.txt.\n' >&2
+		exit 1
+	fi
+done
+
 printf 'Version, standalone-content, attribution, and donation checks passed.\n'

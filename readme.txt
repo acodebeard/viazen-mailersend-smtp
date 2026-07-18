@@ -30,10 +30,6 @@ The configured From email and From name override values supplied by other
 plugins. Reply-To, CC, BCC, HTML content type, message content, and attachments
 are not changed.
 
-This plugin does not add, edit, remove, or validate DNS records. MailerSend
-authentication records and records used by an existing email provider remain
-separate DNS configuration and are not removed on plugin uninstall.
-
 This is an independent community project maintained by acodebeard. It is not
 the official MailerSend WordPress plugin and is not affiliated with, endorsed
 by, sponsored by, or supported by MailerSend, Inc. MailerSend is a product and
@@ -55,9 +51,12 @@ visitor address in Reply-To. For example:
 
 `Reply-To: [your-email]`
 
-Keep the official MailerSend WordPress plugin deactivated. Running multiple
-SMTP plugins can cause more than one plugin to configure the same PHPMailer
-instance, producing order-dependent and unpredictable results.
+Keep DNS records required by MailerSend and by your existing email provider while those services remain in use.
+This plugin does not add, edit, remove, or validate DNS records.
+Keep other SMTP plugins, including the official MailerSend WordPress plugin, deactivated so they cannot configure the same PHPMailer instance.
+
+Running multiple SMTP plugins can cause more than one plugin to configure the
+same PHPMailer instance, producing order-dependent and unpredictable results.
 
 The saved SMTP username remains visible and editable. The saved password never
 enters the settings-page HTML; a fixed six-character mask shows that it exists,
