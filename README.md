@@ -6,11 +6,13 @@ and the plugin's own test message.
 
 The plugin is intentionally focused: it configures the PHPMailer copy bundled
 with WordPress and does not include an API client, SDK, mail library, telemetry,
-advertising, or a general-purpose mail log.
+advertising, or a general-purpose mail log. It can also store a Cloudflare
+Turnstile site key and secret key for compatible forms without implementing or
+calling Turnstile itself.
 
 ## Features
 
-- Authenticated STARTTLS through `smtp.mailersend.net` on port 587.
+- Authenticated STARTTLS through `smtp.mailersend.net` on port 2525, MailerSend's supported alternative for hosts that block port 587.
 - A single mail path for core, plugin, form, and test messages.
 - A quick SMTP authentication check that sends no email and stores only valid or not valid.
 - Configured From email and name override unsafe sender values.
@@ -18,6 +20,8 @@ advertising, or a general-purpose mail log.
 - The saved SMTP password is never rendered back into admin HTML.
 - One sanitized diagnostic result is retained, with no message body or attachment data.
 - Administrators are warned when another known mail-routing plugin is active.
+- Optional Turnstile credentials are exposed through narrow WordPress filters.
+- The saved Turnstile secret is never rendered back into admin HTML.
 - Deactivation preserves settings; uninstall removes this plugin's options.
 
 ## Requirements
@@ -45,6 +49,11 @@ its options.
 Then open **Settings > SMTP Connector for MailerSend**, enter the SMTP credentials and a
 verified sender, save, run **Check credentials**, and use **Send Test Email**
 before testing forms.
+
+Compatible custom forms can read the optional Turnstile credentials through
+the `viazen_mailersend_smtp_turnstile_site_key` and
+`viazen_mailersend_smtp_turnstile_secret_key` filters. Both keys must be saved
+before a form should enable Turnstile.
 
 For Contact Form 7, use a verified-domain address in From and put the visitor's
 address in Reply-To:

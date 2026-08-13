@@ -4,6 +4,17 @@ All notable changes to SMTP Connector for MailerSend are documented here.
 
 ## Unreleased
 
+## [1.1.1] - 2026-08-13
+
+- Switch the MailerSend SMTP connection to supported port 2525 for compatibility with hosts, including DigitalOcean Droplets, that block port 587.
+
+## [1.1.0] - 2026-07-24
+
+- Add optional Cloudflare Turnstile site-key and secret-key fields.
+- Expose configured Turnstile credentials through dedicated WordPress filters.
+- Keep the saved Turnstile secret out of generated admin HTML.
+- Preserve the Turnstile credentials across deactivation and normal ZIP replacement.
+
 ## [1.0.4] - 2026-07-17
 
 - Name the distribution archive `smtp-connector-for-mailersend.zip` to match the WordPress.org slug.

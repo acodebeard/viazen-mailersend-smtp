@@ -12,6 +12,8 @@ $settings = get_option( 'viazen_mailersend_smtp_settings', array() );
 if (
 	'' !== ( $settings['smtp_username'] ?? '' )
 	|| '' !== ( $settings['smtp_password'] ?? '' )
+	|| '' !== ( $settings['turnstile_site_key'] ?? '' )
+	|| '' !== ( $settings['turnstile_secret_key'] ?? '' )
 	|| false !== get_option( 'viazen_mailersend_smtp_credential_status', false )
 ) {
 	throw new RuntimeException( 'Fresh reinstall retained test credentials or credential status.' );

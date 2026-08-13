@@ -44,7 +44,7 @@ if grep -RIFq 'Viazen MailerSend SMTP' \
 	exit 1
 fi
 
-if ! grep -Fqx "## [${plugin_version}] - 2026-07-17" "${changelog_file}"; then
+if ! grep -Fqx "## [${plugin_version}] - 2026-08-13" "${changelog_file}"; then
 	printf 'CHANGELOG.md does not contain the current version.\n' >&2
 	exit 1
 fi

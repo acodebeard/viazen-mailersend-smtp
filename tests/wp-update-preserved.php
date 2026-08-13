@@ -6,6 +6,8 @@ $diagnostic = get_option( 'viazen_mailersend_smtp_diagnostic', array() );
 if (
 	'update-user' !== ( $settings['smtp_username'] ?? '' )
 	|| 'update-password' !== ( $settings['smtp_password'] ?? '' )
+	|| 'update-site-key' !== ( $settings['turnstile_site_key'] ?? '' )
+	|| 'update-secret-key' !== ( $settings['turnstile_secret_key'] ?? '' )
 	|| 'update-sender@example.com' !== ( $settings['from_email'] ?? '' )
 	|| 'Update Test' !== ( $settings['from_name'] ?? '' )
 	|| 'valid' !== get_option( 'viazen_mailersend_smtp_credential_status', '' )

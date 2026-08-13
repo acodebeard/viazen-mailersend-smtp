@@ -7,6 +7,8 @@ update_option(
 		'smtp_password' => 'update-password',
 		'from_email'    => 'update-sender@example.com',
 		'from_name'     => 'Update Test',
+		'turnstile_site_key'   => 'update-site-key',
+		'turnstile_secret_key' => 'update-secret-key',
 	),
 	false
 );

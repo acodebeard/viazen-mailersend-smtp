@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       SMTP Connector for MailerSend
  * Plugin URI:        https://github.com/acodebeard/viazen-mailersend-smtp
- * Description:       Independent integration that routes WordPress email through MailerSend SMTP.
- * Version:           1.0.4
+ * Description:       Routes WordPress email through MailerSend SMTP and supplies optional Turnstile credentials to forms.
+ * Version:           1.1.1
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            acodebeard
@@ -33,7 +33,7 @@ final class Plugin {
 	private const OPTION_SETTINGS = 'viazen_mailersend_smtp_settings';
 
 	/** Plugin version used for cache-safe admin assets. */
-	private const VERSION = '1.0.4';
+	private const VERSION = '1.1.1';
 
 	/** Most recent mail result option. */
 	private const OPTION_DIAGNOSTIC = 'viazen_mailersend_smtp_diagnostic';
@@ -90,6 +90,8 @@ final class Plugin {
 		add_action( 'phpmailer_init', array( self::class, 'configure_phpmailer' ), PHP_INT_MAX );
 		add_filter( 'wp_mail_from', array( self::class, 'filter_from_email' ), PHP_INT_MAX );
 		add_filter( 'wp_mail_from_name', array( self::class, 'filter_from_name' ), PHP_INT_MAX );
+		add_filter( 'viazen_mailersend_smtp_turnstile_site_key', array( self::class, 'filter_turnstile_site_key' ) );
+		add_filter( 'viazen_mailersend_smtp_turnstile_secret_key', array( self::class, 'filter_turnstile_secret_key' ) );
 
 		add_action( 'wp_mail_failed', array( self::class, 'record_failure' ) );
 		add_action( 'wp_mail_succeeded', array( self::class, 'record_success' ) );
@@ -131,7 +133,7 @@ final class Plugin {
 		// PHPMailer public property names are part of its external API.
 		// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		$phpmailer->Host        = 'smtp.mailersend.net';
-		$phpmailer->Port        = 587;
+		$phpmailer->Port        = 2525;
 		$phpmailer->SMTPSecure  = PHPMailer::ENCRYPTION_STARTTLS;
 		$phpmailer->SMTPAuth    = true;
 		$phpmailer->SMTPAutoTLS = true;
@@ -164,6 +166,30 @@ final class Plugin {
 		$from_name = self::get_settings()['from_name'];
 
 		return '' !== $from_name ? $from_name : $name;
+	}
+
+	/**
+	 * Supplies the configured public Turnstile site key to integrations.
+	 *
+	 * @param mixed $site_key Existing site key.
+	 * @return string
+	 */
+	public static function filter_turnstile_site_key( $site_key ): string {
+		$configured = self::get_settings()['turnstile_site_key'];
+
+		return '' !== $configured ? $configured : ( is_string( $site_key ) ? $site_key : '' );
+	}
+
+	/**
+	 * Supplies the configured private Turnstile secret key to integrations.
+	 *
+	 * @param mixed $secret_key Existing secret key.
+	 * @return string
+	 */
+	public static function filter_turnstile_secret_key( $secret_key ): string {
+		$configured = self::get_settings()['turnstile_secret_key'];
+
+		return '' !== $configured ? $configured : ( is_string( $secret_key ) ? $secret_key : '' );
 	}
 
 	/**
@@ -262,6 +288,29 @@ final class Plugin {
 			self::PAGE_SLUG,
 			'viazen_mailersend_smtp_sender'
 		);
+
+		add_settings_section(
+			'viazen_mailersend_smtp_turnstile',
+			esc_html__( 'Cloudflare Turnstile', 'smtp-connector-for-mailersend' ),
+			array( self::class, 'render_turnstile_section' ),
+			self::PAGE_SLUG
+		);
+
+		add_settings_field(
+			'viazen_mailersend_smtp_turnstile_site_key',
+			esc_html__( 'Turnstile site key', 'smtp-connector-for-mailersend' ),
+			array( self::class, 'render_turnstile_site_key_field' ),
+			self::PAGE_SLUG,
+			'viazen_mailersend_smtp_turnstile'
+		);
+
+		add_settings_field(
+			'viazen_mailersend_smtp_turnstile_secret_key',
+			esc_html__( 'Turnstile secret key', 'smtp-connector-for-mailersend' ),
+			array( self::class, 'render_turnstile_secret_key_field' ),
+			self::PAGE_SLUG,
+			'viazen_mailersend_smtp_turnstile'
+		);
 	}
 
 	/**
@@ -290,6 +339,21 @@ final class Plugin {
 				$password               = self::limit_text( $password, 1024, false );
 				$clean['smtp_password'] = $password;
 				$credentials_changed    = $credentials_changed || $password !== $existing['smtp_password'];
+			}
+		}
+
+		if ( isset( $input['turnstile_site_key'] ) && is_string( $input['turnstile_site_key'] ) ) {
+			$clean['turnstile_site_key'] = self::limit_text(
+				trim( sanitize_text_field( $input['turnstile_site_key'] ) ),
+				200,
+				false
+			);
+		}
+
+		if ( isset( $input['turnstile_secret_key'] ) && is_string( $input['turnstile_secret_key'] ) && '' !== $input['turnstile_secret_key'] ) {
+			$turnstile_secret = preg_replace( '/[\x00-\x1F\x7F]/', '', $input['turnstile_secret_key'] );
+			if ( is_string( $turnstile_secret ) && '' !== $turnstile_secret ) {
+				$clean['turnstile_secret_key'] = self::limit_text( $turnstile_secret, 200, false );
 			}
 		}
 
@@ -329,7 +393,7 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function render_credentials_section(): void {
-		echo '<p>' . esc_html__( 'Mail is sent through smtp.mailersend.net using authenticated STARTTLS on port 587.', 'smtp-connector-for-mailersend' ) . '</p>';
+		echo '<p>' . esc_html__( 'Mail is sent through smtp.mailersend.net using authenticated STARTTLS on port 2525.', 'smtp-connector-for-mailersend' ) . '</p>';
 	}
 
 	/**
@@ -339,6 +403,15 @@ final class Plugin {
 	 */
 	public static function render_sender_section(): void {
 		echo '<p>' . esc_html__( 'This sender overrides From values supplied by forms and other plugins. Their Reply-To headers remain unchanged.', 'smtp-connector-for-mailersend' ) . '</p>';
+	}
+
+	/**
+	 * Describes the optional Turnstile credential handoff.
+	 *
+	 * @return void
+	 */
+	public static function render_turnstile_section(): void {
+		echo '<p>' . esc_html__( 'Optional. These credentials are made available to compatible forms. Both keys are required before a form enables Turnstile.', 'smtp-connector-for-mailersend' ) . '</p>';
 	}
 
 	/**
@@ -445,6 +518,52 @@ final class Plugin {
 			'<input type="text" class="regular-text" id="viazen-mailersend-smtp-from-name" name="%1$s[from_name]" value="%2$s" required>',
 			esc_attr( self::OPTION_SETTINGS ),
 			esc_attr( $settings['from_name'] )
+		);
+	}
+
+	/**
+	 * Renders the public Turnstile site key.
+	 *
+	 * @return void
+	 */
+	public static function render_turnstile_site_key_field(): void {
+		$settings = self::get_settings();
+
+		printf(
+			'<input type="text" class="regular-text" id="viazen-mailersend-smtp-turnstile-site-key" name="%1$s[turnstile_site_key]" value="%2$s" autocomplete="off" spellcheck="false"><p class="description">%3$s</p>',
+			esc_attr( self::OPTION_SETTINGS ),
+			esc_attr( $settings['turnstile_site_key'] ),
+			esc_html__( 'The public site key for the Turnstile widget.', 'smtp-connector-for-mailersend' )
+		);
+	}
+
+	/**
+	 * Renders secret-key status and a blank replacement field when requested.
+	 *
+	 * The six-character value is a fixed visual mask. The saved secret never
+	 * enters the generated admin HTML.
+	 *
+	 * @return void
+	 */
+	public static function render_turnstile_secret_key_field(): void {
+		$settings = self::get_settings();
+
+		if ( '' === $settings['turnstile_secret_key'] ) {
+			printf(
+				'<input type="password" class="regular-text" id="viazen-mailersend-smtp-turnstile-secret-key" name="%1$s[turnstile_secret_key]" autocomplete="new-password" spellcheck="false"><p class="description">%2$s</p>',
+				esc_attr( self::OPTION_SETTINGS ),
+				esc_html__( 'Enter the private Turnstile secret key.', 'smtp-connector-for-mailersend' )
+			);
+			return;
+		}
+
+		printf(
+			'<input type="password" class="regular-text" id="viazen-mailersend-smtp-turnstile-secret-key-saved" value="000000" disabled autocomplete="off" aria-label="%1$s"><details><summary class="button-link">%2$s</summary><p><label class="screen-reader-text" for="viazen-mailersend-smtp-turnstile-secret-key">%3$s</label><input type="password" class="regular-text" id="viazen-mailersend-smtp-turnstile-secret-key" name="%4$s[turnstile_secret_key]" autocomplete="new-password" spellcheck="false" aria-describedby="viazen-mailersend-smtp-turnstile-secret-key-description"></p><p class="description" id="viazen-mailersend-smtp-turnstile-secret-key-description">%5$s</p></details>',
+			esc_attr__( 'A saved Turnstile secret key is set.', 'smtp-connector-for-mailersend' ),
+			esc_html__( 'Change secret key', 'smtp-connector-for-mailersend' ),
+			esc_html__( 'New Turnstile secret key', 'smtp-connector-for-mailersend' ),
+			esc_attr( self::OPTION_SETTINGS ),
+			esc_html__( 'Enter a new secret to replace the saved key. Leaving this blank keeps the saved key.', 'smtp-connector-for-mailersend' )
 		);
 	}
 
@@ -999,7 +1118,7 @@ final class Plugin {
 	/**
 	 * Returns settings merged with safe defaults.
 	 *
-	 * @return array{smtp_username:string, smtp_password:string, from_email:string, from_name:string}
+	 * @return array{smtp_username:string, smtp_password:string, from_email:string, from_name:string, turnstile_site_key:string, turnstile_secret_key:string}
 	 */
 	private static function get_settings(): array {
 		$stored  = get_option( self::OPTION_SETTINGS, array() );
@@ -1007,27 +1126,31 @@ final class Plugin {
 		$default = self::get_default_settings();
 
 		return array(
-			'smtp_username' => isset( $stored['smtp_username'] ) && is_string( $stored['smtp_username'] ) ? $stored['smtp_username'] : $default['smtp_username'],
-			'smtp_password' => isset( $stored['smtp_password'] ) && is_string( $stored['smtp_password'] ) ? $stored['smtp_password'] : $default['smtp_password'],
-			'from_email'    => isset( $stored['from_email'] ) && is_string( $stored['from_email'] ) ? $stored['from_email'] : $default['from_email'],
-			'from_name'     => isset( $stored['from_name'] ) && is_string( $stored['from_name'] ) ? $stored['from_name'] : $default['from_name'],
+			'smtp_username'        => isset( $stored['smtp_username'] ) && is_string( $stored['smtp_username'] ) ? $stored['smtp_username'] : $default['smtp_username'],
+			'smtp_password'        => isset( $stored['smtp_password'] ) && is_string( $stored['smtp_password'] ) ? $stored['smtp_password'] : $default['smtp_password'],
+			'from_email'           => isset( $stored['from_email'] ) && is_string( $stored['from_email'] ) ? $stored['from_email'] : $default['from_email'],
+			'from_name'            => isset( $stored['from_name'] ) && is_string( $stored['from_name'] ) ? $stored['from_name'] : $default['from_name'],
+			'turnstile_site_key'   => isset( $stored['turnstile_site_key'] ) && is_string( $stored['turnstile_site_key'] ) ? $stored['turnstile_site_key'] : $default['turnstile_site_key'],
+			'turnstile_secret_key' => isset( $stored['turnstile_secret_key'] ) && is_string( $stored['turnstile_secret_key'] ) ? $stored['turnstile_secret_key'] : $default['turnstile_secret_key'],
 		);
 	}
 
 	/**
 	 * Returns initial settings without credentials.
 	 *
-	 * @return array{smtp_username:string, smtp_password:string, from_email:string, from_name:string}
+	 * @return array{smtp_username:string, smtp_password:string, from_email:string, from_name:string, turnstile_site_key:string, turnstile_secret_key:string}
 	 */
 	private static function get_default_settings(): array {
 		$admin_email = get_option( 'admin_email', '' );
 		$admin_email = is_string( $admin_email ) ? sanitize_email( $admin_email ) : '';
 
 		return array(
-			'smtp_username' => '',
-			'smtp_password' => '',
-			'from_email'    => is_email( $admin_email ) ? $admin_email : '',
-			'from_name'     => sanitize_text_field( (string) get_bloginfo( 'name' ) ),
+			'smtp_username'        => '',
+			'smtp_password'        => '',
+			'from_email'           => is_email( $admin_email ) ? $admin_email : '',
+			'from_name'            => sanitize_text_field( (string) get_bloginfo( 'name' ) ),
+			'turnstile_site_key'   => '',
+			'turnstile_secret_key' => '',
 		);
 	}
 

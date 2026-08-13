@@ -19,6 +19,8 @@ $diagnostic_option = 'viazen_mailersend_smtp_diagnostic';
 $credential_status_option = 'viazen_mailersend_smtp_credential_status';
 $fake_username     = 'integration-user';
 $fake_password     = 'integration-secret';
+$fake_turnstile_site_key = 'integration-site-key';
+$fake_turnstile_secret_key = 'integration-turnstile-secret';
 
 delete_option( $credential_status_option );
 Plugin::activate();
@@ -29,6 +31,8 @@ update_option(
 		'smtp_password' => $fake_password,
 		'from_email'    => 'sender@example.com',
 		'from_name'     => 'Viazen Integration',
+		'turnstile_site_key'   => $fake_turnstile_site_key,
+		'turnstile_secret_key' => $fake_turnstile_secret_key,
 	),
 	false
 );
@@ -39,6 +43,8 @@ viazen_wp_assert( false === array_key_exists( $credential_status_option, wp_load
 viazen_wp_assert( PHP_INT_MAX === has_action( 'phpmailer_init', array( Plugin::class, 'configure_phpmailer' ) ), 'phpmailer_init hook is missing or has the wrong priority.' );
 viazen_wp_assert( PHP_INT_MAX === has_filter( 'wp_mail_from', array( Plugin::class, 'filter_from_email' ) ), 'wp_mail_from hook is missing or has the wrong priority.' );
 viazen_wp_assert( PHP_INT_MAX === has_filter( 'wp_mail_from_name', array( Plugin::class, 'filter_from_name' ) ), 'wp_mail_from_name hook is missing or has the wrong priority.' );
+viazen_wp_assert( false !== has_filter( 'viazen_mailersend_smtp_turnstile_site_key', array( Plugin::class, 'filter_turnstile_site_key' ) ), 'Turnstile site-key filter is missing.' );
+viazen_wp_assert( false !== has_filter( 'viazen_mailersend_smtp_turnstile_secret_key', array( Plugin::class, 'filter_turnstile_secret_key' ) ), 'Turnstile secret-key filter is missing.' );
 viazen_wp_assert( false !== has_action( 'wp_mail_failed', array( Plugin::class, 'record_failure' ) ), 'wp_mail_failed hook is missing.' );
 viazen_wp_assert( false !== has_action( 'wp_mail_succeeded', array( Plugin::class, 'record_success' ) ), 'wp_mail_succeeded hook is missing.' );
 viazen_wp_assert( false !== has_action( 'admin_enqueue_scripts', array( Plugin::class, 'enqueue_admin_assets' ) ), 'Admin stylesheet hook is missing.' );
@@ -66,7 +72,7 @@ do_action( 'phpmailer_init', $mailer );
 
 viazen_wp_assert( 'smtp' === $mailer->Mailer, 'PHPMailer transport is not SMTP.' );
 viazen_wp_assert( 'smtp.mailersend.net' === $mailer->Host, 'SMTP host mismatch.' );
-viazen_wp_assert( 587 === $mailer->Port, 'SMTP port mismatch.' );
+viazen_wp_assert( 2525 === $mailer->Port, 'SMTP port mismatch.' );
 viazen_wp_assert( PHPMailer::ENCRYPTION_STARTTLS === $mailer->SMTPSecure, 'STARTTLS mismatch.' );
 viazen_wp_assert( true === $mailer->SMTPAuth && true === $mailer->SMTPAutoTLS, 'SMTP authentication or AutoTLS is disabled.' );
 viazen_wp_assert( $fake_username === $mailer->Username && $fake_password === $mailer->Password, 'SMTP credentials were not applied.' );
@@ -80,6 +86,8 @@ viazen_wp_assert( 1 === count( $mailer->getAttachments() ), 'Attachment was chan
 
 viazen_wp_assert( 'sender@example.com' === apply_filters( 'wp_mail_from', 'visitor@example.com' ), 'From email was not overridden.' );
 viazen_wp_assert( 'Viazen Integration' === apply_filters( 'wp_mail_from_name', 'Visitor' ), 'From name was not overridden.' );
+viazen_wp_assert( $fake_turnstile_site_key === apply_filters( 'viazen_mailersend_smtp_turnstile_site_key', '' ), 'Turnstile site key was not supplied.' );
+viazen_wp_assert( $fake_turnstile_secret_key === apply_filters( 'viazen_mailersend_smtp_turnstile_secret_key', '' ), 'Turnstile secret key was not supplied.' );
 
 ob_start();
 Plugin::render_credential_check();
@@ -111,6 +119,8 @@ $preserved = Plugin::sanitize_settings(
 );
 viazen_wp_assert( $fake_username === $preserved['smtp_username'], 'Blank username did not preserve the saved value.' );
 viazen_wp_assert( $fake_password === $preserved['smtp_password'], 'Blank password did not preserve the saved value.' );
+viazen_wp_assert( $fake_turnstile_site_key === $preserved['turnstile_site_key'], 'Omitted Turnstile site key did not preserve the saved value.' );
+viazen_wp_assert( $fake_turnstile_secret_key === $preserved['turnstile_secret_key'], 'Omitted Turnstile secret did not preserve the saved value.' );
 viazen_wp_assert( 'invalid' === get_option( $credential_status_option ), 'Unchanged credentials cleared their status.' );
 
 Plugin::sanitize_settings(
@@ -135,6 +145,8 @@ viazen_wp_assert( $fake_username === $malformed['smtp_username'], 'Malformed use
 viazen_wp_assert( $fake_password === $malformed['smtp_password'], 'Malformed password input replaced the saved value.' );
 viazen_wp_assert( 'sender@example.com' === $malformed['from_email'], 'Malformed From email input replaced the saved value.' );
 viazen_wp_assert( 'Viazen Integration' === $malformed['from_name'], 'Malformed From name input replaced the saved value.' );
+viazen_wp_assert( $fake_turnstile_site_key === $malformed['turnstile_site_key'], 'Malformed Turnstile site key replaced the saved value.' );
+viazen_wp_assert( $fake_turnstile_secret_key === $malformed['turnstile_secret_key'], 'Malformed Turnstile secret replaced the saved value.' );
 
 ob_start();
 Plugin::render_username_field();
@@ -142,11 +154,21 @@ $username_html = ob_get_clean();
 ob_start();
 Plugin::render_password_field();
 $password_html = ob_get_clean();
+ob_start();
+Plugin::render_turnstile_site_key_field();
+$turnstile_site_key_html = ob_get_clean();
+ob_start();
+Plugin::render_turnstile_secret_key_field();
+$turnstile_secret_key_html = ob_get_clean();
 viazen_wp_assert( str_contains( $username_html, 'value="' . $fake_username . '"' ), 'Saved username was not shown in admin HTML.' );
 viazen_wp_assert( false === str_contains( $password_html, $fake_password ), 'Saved password entered admin HTML.' );
 viazen_wp_assert( str_contains( $password_html, 'value="000000"' ), 'Saved password status did not render a six-character mask.' );
 viazen_wp_assert( str_contains( $password_html, '<details>' ), 'Saved password did not render a native change control.' );
 viazen_wp_assert( str_contains( $password_html, 'Change password' ), 'Saved password change control is missing its label.' );
+viazen_wp_assert( str_contains( $turnstile_site_key_html, 'value="' . $fake_turnstile_site_key . '"' ), 'Saved Turnstile site key was not shown in admin HTML.' );
+viazen_wp_assert( false === str_contains( $turnstile_secret_key_html, $fake_turnstile_secret_key ), 'Saved Turnstile secret entered admin HTML.' );
+viazen_wp_assert( str_contains( $turnstile_secret_key_html, 'value="000000"' ), 'Saved Turnstile secret status did not render a mask.' );
+viazen_wp_assert( str_contains( $turnstile_secret_key_html, 'Change secret key' ), 'Saved Turnstile secret change control is missing.' );
 
 ob_start();
 Plugin::render_donation_link();
