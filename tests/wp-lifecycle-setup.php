@@ -7,6 +7,8 @@ update_option(
 		'smtp_password' => 'lifecycle-password',
 		'from_email'    => 'sender@example.com',
 		'from_name'     => 'Lifecycle Test',
+		'turnstile_site_key'   => 'lifecycle-site-key',
+		'turnstile_secret_key' => 'lifecycle-secret-key',
 	),
 	false
 );

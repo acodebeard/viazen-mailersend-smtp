@@ -12,6 +12,8 @@ $admin_ids = get_users(
 if (
 	'lifecycle-user' !== ( $settings['smtp_username'] ?? '' )
 	|| 'lifecycle-password' !== ( $settings['smtp_password'] ?? '' )
+	|| 'lifecycle-site-key' !== ( $settings['turnstile_site_key'] ?? '' )
+	|| 'lifecycle-secret-key' !== ( $settings['turnstile_secret_key'] ?? '' )
 	|| false === get_option( 'viazen_mailersend_smtp_diagnostic', false )
 	|| 'valid' !== get_option( 'viazen_mailersend_smtp_credential_status', '' )
 	|| empty( $admin_ids )

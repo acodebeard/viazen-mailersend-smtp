@@ -48,6 +48,8 @@ namespace {
 			'smtp_password' => 'saved-password',
 			'from_email' => 'sender@example.test',
 			'from_name' => 'Viazen Sender',
+			'turnstile_site_key' => 'saved-site-key',
+			'turnstile_secret_key' => 'saved-secret-key',
 		),
 	);
 	$GLOBALS['viazen_test_user_meta'] = array();
@@ -110,12 +112,14 @@ namespace {
 
 	viazen_assert( 'smtp' === $mailer->Mailer, 'SMTP transport was not selected.' );
 	viazen_assert( 'smtp.mailersend.net' === $mailer->Host, 'SMTP host mismatch.' );
-	viazen_assert( 587 === $mailer->Port, 'SMTP port mismatch.' );
+	viazen_assert( 2525 === $mailer->Port, 'SMTP port mismatch.' );
 	viazen_assert( 'tls' === $mailer->SMTPSecure, 'STARTTLS mismatch.' );
 	viazen_assert( true === $mailer->SMTPAuth && true === $mailer->SMTPAutoTLS, 'SMTP authentication settings mismatch.' );
 	viazen_assert( 20 === $mailer->Timeout && 0 === $mailer->SMTPDebug, 'Timeout or debug setting mismatch.' );
 	viazen_assert( 'sender@example.test' === $class::filter_from_email( 'other@example.test' ), 'From email was not overridden.' );
 	viazen_assert( 'Viazen Sender' === $class::filter_from_name( 'Other Sender' ), 'From name was not overridden.' );
+	viazen_assert( 'saved-site-key' === $class::filter_turnstile_site_key( '' ), 'Turnstile site key was not supplied.' );
+	viazen_assert( 'saved-secret-key' === $class::filter_turnstile_secret_key( '' ), 'Turnstile secret key was not supplied.' );
 
 	\PHPMailer\PHPMailer\PHPMailer::$smtpConnectResult = true;
 	viazen_assert( true === $class::check_smtp_credentials(), 'Valid SMTP credentials were not accepted.' );
@@ -151,7 +155,7 @@ namespace {
 	$class::enqueue_admin_assets( 'settings_page_viazen-mailersend-smtp' );
 	$admin_style = $GLOBALS['viazen_test_styles']['viazen-mailersend-smtp-admin'] ?? array();
 	viazen_assert( str_ends_with( $admin_style['src'] ?? '', '/assets/css/admin-settings.css' ), 'Admin stylesheet URL is incorrect.' );
-	viazen_assert( '1.0.3' === ( $admin_style['version'] ?? '' ), 'Admin stylesheet version is incorrect.' );
+	viazen_assert( '1.1.1' === ( $admin_style['version'] ?? '' ), 'Admin stylesheet version is incorrect.' );
 
 	ob_start();
 	$class::render_username_field();
@@ -159,11 +163,21 @@ namespace {
 	ob_start();
 	$class::render_password_field();
 	$password_html = ob_get_clean();
+	ob_start();
+	$class::render_turnstile_site_key_field();
+	$turnstile_site_key_html = ob_get_clean();
+	ob_start();
+	$class::render_turnstile_secret_key_field();
+	$turnstile_secret_key_html = ob_get_clean();
 	viazen_assert( str_contains( $username_html, 'value="saved-user"' ), 'Saved username was not shown.' );
 	viazen_assert( false === str_contains( $password_html, 'saved-password' ), 'Saved password entered HTML.' );
 	viazen_assert( str_contains( $password_html, 'value="000000"' ), 'Saved password status did not render a six-character mask.' );
 	viazen_assert( str_contains( $password_html, '<details>' ), 'Saved password did not render a native change control.' );
 	viazen_assert( str_contains( $password_html, 'Change password' ), 'Saved password change control is missing its label.' );
+	viazen_assert( str_contains( $turnstile_site_key_html, 'value="saved-site-key"' ), 'Saved Turnstile site key was not shown.' );
+	viazen_assert( false === str_contains( $turnstile_secret_key_html, 'saved-secret-key' ), 'Saved Turnstile secret entered HTML.' );
+	viazen_assert( str_contains( $turnstile_secret_key_html, 'value="000000"' ), 'Saved Turnstile secret status did not render a mask.' );
+	viazen_assert( str_contains( $turnstile_secret_key_html, 'Change secret key' ), 'Saved Turnstile secret change control is missing.' );
 
 	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_settings']['smtp_password'] = '';
 	ob_start();
@@ -188,7 +202,22 @@ namespace {
 	);
 	viazen_assert( 'saved-user' === $preserved['smtp_username'], 'Blank username did not preserve the saved value.' );
 	viazen_assert( 'saved-password' === $preserved['smtp_password'], 'Blank password did not preserve the saved value.' );
+	viazen_assert( 'saved-site-key' === $preserved['turnstile_site_key'], 'Omitted Turnstile site key did not preserve the saved value.' );
+	viazen_assert( 'saved-secret-key' === $preserved['turnstile_secret_key'], 'Omitted Turnstile secret did not preserve the saved value.' );
 	viazen_assert( 'invalid' === $GLOBALS['viazen_test_options']['viazen_mailersend_smtp_credential_status'], 'Unchanged credentials cleared their status.' );
+
+	$replacement = $class::sanitize_settings(
+		array(
+			'smtp_username'       => 'saved-user',
+			'smtp_password'       => '',
+			'from_email'          => 'sender@example.test',
+			'from_name'           => 'Viazen Sender',
+			'turnstile_site_key'  => 'replacement-site-key',
+			'turnstile_secret_key' => "replacement-\nsecret-key",
+		)
+	);
+	viazen_assert( 'replacement-site-key' === $replacement['turnstile_site_key'], 'Replacement Turnstile site key was not sanitized and saved.' );
+	viazen_assert( 'replacement-secret-key' === $replacement['turnstile_secret_key'], 'Replacement Turnstile secret was not sanitized and saved.' );
 
 	$class::sanitize_settings(
 		array(
@@ -212,6 +241,8 @@ namespace {
 	viazen_assert( 'saved-password' === $malformed['smtp_password'], 'Malformed password input replaced the saved value.' );
 	viazen_assert( 'sender@example.test' === $malformed['from_email'], 'Malformed From email input replaced the saved value.' );
 	viazen_assert( 'Viazen Sender' === $malformed['from_name'], 'Malformed From name input replaced the saved value.' );
+	viazen_assert( 'saved-site-key' === $malformed['turnstile_site_key'], 'Malformed Turnstile site key replaced the saved value.' );
+	viazen_assert( 'saved-secret-key' === $malformed['turnstile_secret_key'], 'Malformed Turnstile secret replaced the saved value.' );
 
 	$saved_settings = $GLOBALS['viazen_test_options']['viazen_mailersend_smtp_settings'];
 	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_settings'] = array(
@@ -219,6 +250,8 @@ namespace {
 		'smtp_password' => array( 'unexpected' ),
 		'from_email' => array( 'unexpected' ),
 		'from_name' => array( 'unexpected' ),
+		'turnstile_site_key' => array( 'unexpected' ),
+		'turnstile_secret_key' => array( 'unexpected' ),
 	);
 	$normalized_mailer = new \PHPMailer\PHPMailer\PHPMailer();
 	$class::configure_phpmailer( $normalized_mailer );
@@ -226,6 +259,8 @@ namespace {
 	viazen_assert( '' === $normalized_mailer->Password, 'Malformed stored password was not rejected.' );
 	viazen_assert( 'admin@example.test' === $class::filter_from_email( 'other@example.test' ), 'Malformed stored From email did not use the safe default.' );
 	viazen_assert( 'Viazen Test' === $class::filter_from_name( 'Other Sender' ), 'Malformed stored From name did not use the safe default.' );
+	viazen_assert( 'fallback-site-key' === $class::filter_turnstile_site_key( 'fallback-site-key' ), 'Malformed stored Turnstile site key did not use the filter fallback.' );
+	viazen_assert( 'fallback-secret-key' === $class::filter_turnstile_secret_key( 'fallback-secret-key' ), 'Malformed stored Turnstile secret did not use the filter fallback.' );
 	$GLOBALS['viazen_test_options']['viazen_mailersend_smtp_settings'] = $saved_settings;
 
 	$error = new WP_Error(

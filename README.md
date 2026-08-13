@@ -6,11 +6,13 @@ and the plugin's own test message.
 
 The plugin is intentionally focused: it configures the PHPMailer copy bundled
 with WordPress and does not include an API client, SDK, mail library, telemetry,
-advertising, or a general-purpose mail log.
+advertising, or a general-purpose mail log. It can also store a Cloudflare
+Turnstile site key and secret key for compatible forms without implementing or
+calling Turnstile itself.
 
 ## Features
 
-- Authenticated STARTTLS through `smtp.mailersend.net` on port 587.
+- Authenticated STARTTLS through `smtp.mailersend.net` on port 2525, MailerSend's supported alternative for hosts that block port 587.
 - A single mail path for core, plugin, form, and test messages.
 - A quick SMTP authentication check that sends no email and stores only valid or not valid.
 - Configured From email and name override unsafe sender values.
@@ -18,6 +20,8 @@ advertising, or a general-purpose mail log.
 - The saved SMTP password is never rendered back into admin HTML.
 - One sanitized diagnostic result is retained, with no message body or attachment data.
 - Administrators are warned when another known mail-routing plugin is active.
+- Optional Turnstile credentials are exposed through narrow WordPress filters.
+- The saved Turnstile secret is never rendered back into admin HTML.
 - Deactivation preserves settings; uninstall removes this plugin's options.
 
 ## Requirements
@@ -29,21 +33,27 @@ advertising, or a general-purpose mail log.
 
 ## Install
 
-For a published version, download `viazen-mailersend-smtp.zip` from the matching
-GitHub Release. In WordPress Admin, open **Plugins > Add New Plugin > Upload
-Plugin**, upload the ZIP, and activate it.
+For a published version, download `smtp-connector-for-mailersend.zip` from the
+matching GitHub Release. In WordPress Admin, open **Plugins > Add New Plugin >
+Upload Plugin**, upload the ZIP, and activate it.
 
 Existing manual installations can use the same upload screen and select
 **Replace current with uploaded**. The GitHub package retains the legacy
-`viazen-mailersend-smtp` folder for this in-place upgrade path, while its public
-WordPress.org slug and translation text domain are
-`smtp-connector-for-mailersend`. Internal option names remain unchanged, so a
-normal replacement preserves saved credentials. Do not delete the existing
-plugin before replacing it because uninstall intentionally removes its options.
+`viazen-mailersend-smtp` folder inside the ZIP for this in-place upgrade path.
+The distribution filename, public WordPress.org slug, and translation text
+domain are `smtp-connector-for-mailersend`. Internal option names remain
+unchanged, so a normal replacement preserves saved credentials. Do not delete
+the existing plugin before replacing it because uninstall intentionally removes
+its options.
 
 Then open **Settings > SMTP Connector for MailerSend**, enter the SMTP credentials and a
 verified sender, save, run **Check credentials**, and use **Send Test Email**
 before testing forms.
+
+Compatible custom forms can read the optional Turnstile credentials through
+the `viazen_mailersend_smtp_turnstile_site_key` and
+`viazen_mailersend_smtp_turnstile_secret_key` filters. Both keys must be saved
+before a form should enable Turnstile.
 
 For Contact Form 7, use a verified-domain address in From and put the visitor's
 address in Reply-To:
@@ -84,8 +94,9 @@ scripts/build-release.sh
 PHPStan runs at level 10 as part of `composer check`; the project does not use
 a PHPStan baseline or ignored findings.
 
-The installable archive is written to `dist/viazen-mailersend-smtp.zip` and is
-not committed to the source repository.
+The installable archive is written to
+`dist/smtp-connector-for-mailersend.zip` and is not committed to the source
+repository.
 
 The destructive lifecycle and integration suite is intended only for a local
 WordPress sandbox:

@@ -5,11 +5,11 @@ Tags: smtp, email, mailersend, contact form 7
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 1.0.3
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Routes all WordPress wp_mail() messages through authenticated MailerSend SMTP.
+Routes WordPress email through authenticated MailerSend SMTP and optionally supplies Cloudflare Turnstile credentials to compatible forms.
 
 == Description ==
 
@@ -21,7 +21,7 @@ services other than the configured SMTP connection used to send mail.
 All messages sent through wp_mail(), including Contact Form 7 mail, use:
 
 * smtp.mailersend.net
-* Port 587
+* Port 2525
 * STARTTLS
 * Authenticated SMTP
 * A 20-second connection timeout
@@ -30,6 +30,10 @@ The configured From email and From name override values supplied by other
 plugins. Reply-To, CC, BCC, HTML content type, message content, and attachments
 are not changed.
 
+The optional Turnstile site key and secret key are exposed to compatible forms
+through dedicated filters. This plugin does not render a widget, validate
+Turnstile tokens, or contact Cloudflare itself.
+
 This is an independent community project maintained by acodebeard. It is not
 the official MailerSend WordPress plugin and is not affiliated with, endorsed
 by, sponsored by, or supported by MailerSend, Inc. MailerSend is a product and
@@ -37,15 +41,16 @@ trademark of MailerSend, Inc.; the name is used only to identify compatibility.
 
 == Installation ==
 
-1. Upload `viazen-mailersend-smtp.zip` through Plugins > Add New Plugin > Upload Plugin.
+1. Upload `smtp-connector-for-mailersend.zip` through Plugins > Add New Plugin > Upload Plugin.
 2. Activate SMTP Connector for MailerSend.
 3. Open Settings > SMTP Connector for MailerSend.
 4. Enter the MailerSend SMTP username and password.
 5. Enter a verified From email and the desired From name, then save.
-6. Send a test email from the same settings page.
+6. Optionally enter both Cloudflare Turnstile keys for a compatible form.
+7. Send a test email from the same settings page.
 
 To update an existing legacy installation, upload the new
-`viazen-mailersend-smtp.zip` and select Replace current with uploaded. Do not
+`smtp-connector-for-mailersend.zip` and select Replace current with uploaded. Do not
 delete the existing plugin first; replacement preserves its saved credentials.
 
 For Contact Form 7, use a sender on the MailerSend-verified domain and keep the
@@ -67,6 +72,10 @@ enters the settings-page HTML; a fixed six-character mask shows that it exists,
 and a small disclosure reveals a blank replacement field when needed. Leaving
 the replacement field blank preserves the saved password.
 
+The public Turnstile site key remains visible and editable. The saved Turnstile
+secret uses the same masked replacement pattern and never enters the
+settings-page HTML.
+
 The credential check connects to MailerSend and authenticates without sending
 an email. It stores only valid or not valid. It never stores or displays the
 SMTP response or an error transcript.
@@ -76,6 +85,8 @@ SMTP response or an error transcript.
 * `phpmailer_init` configures WordPress PHPMailer for MailerSend SMTP.
 * `wp_mail_from` forces the configured From email.
 * `wp_mail_from_name` forces the configured From name.
+* `viazen_mailersend_smtp_turnstile_site_key` supplies the optional public Turnstile key.
+* `viazen_mailersend_smtp_turnstile_secret_key` supplies the optional private Turnstile key.
 * `wp_mail_failed` stores the latest redacted failure result.
 * `wp_mail_succeeded` stores the latest success result.
 * `admin_menu` adds Settings > SMTP Connector for MailerSend.
@@ -113,6 +124,13 @@ SMTP response or an error transcript.
 1. Configure a Contact Form 7 form with the plugin's configured From address.
 2. Submit the public form.
 3. Confirm the message content is unchanged and delivery uses MailerSend SMTP.
+
+= Turnstile credential handoff =
+
+1. Save both Turnstile keys on the plugin settings page.
+2. Confirm a compatible form receives both filter values and renders only the public site key.
+3. Confirm the saved secret does not appear in the settings-page or public-form HTML.
+4. Submit the form and confirm it performs server-side Siteverify validation before calling wp_mail().
 
 = Reply-To behavior =
 
@@ -172,6 +190,19 @@ Deactivation preserves plugin settings. Deleting the plugin through WordPress
 removes its settings, credential-check status, and latest diagnostic result.
 
 == Changelog ==
+
+= 1.1.1 =
+
+* Switched to MailerSend's supported port 2525 so SMTP works on hosts that block port 587, including DigitalOcean Droplets.
+
+= 1.1.0 =
+
+* Added optional Cloudflare Turnstile credential fields and filter-based handoff for compatible forms.
+* Kept the saved Turnstile secret out of generated admin HTML.
+
+= 1.0.4 =
+
+* Matched the distribution ZIP filename to the WordPress.org plugin slug.
 
 = 1.0.3 =
 

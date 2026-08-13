@@ -6,6 +6,7 @@ plugin_file="${project_root}/viazen-mailersend-smtp.php"
 readme_file="${project_root}/readme.txt"
 changelog_file="${project_root}/CHANGELOG.md"
 admin_css_file="${project_root}/assets/css/admin-settings.css"
+build_script="${project_root}/scripts/build-release.sh"
 published_title='SMTP Connector for MailerSend'
 published_slug='smtp-connector-for-mailersend'
 
@@ -32,13 +33,18 @@ if [[ "${text_domain}" != "${published_slug}" ]] || \
 	exit 1
 fi
 
+if ! grep -Fqx "package_slug=\"${published_slug}\"" "${build_script}"; then
+	printf 'The distribution ZIP filename does not match the WordPress.org slug.\n' >&2
+	exit 1
+fi
+
 if grep -RIFq 'Viazen MailerSend SMTP' \
 	--exclude=check-metadata.sh --exclude-dir=.git --exclude-dir=dist --exclude-dir=vendor "${project_root}"; then
 	printf 'The retired display title is still present.\n' >&2
 	exit 1
 fi
 
-if ! grep -Fqx "## [${plugin_version}] - 2026-07-17" "${changelog_file}"; then
+if ! grep -Fqx "## [${plugin_version}] - 2026-08-13" "${changelog_file}"; then
 	printf 'CHANGELOG.md does not contain the current version.\n' >&2
 	exit 1
 fi
