@@ -9,8 +9,7 @@ Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Routes all WordPress wp_mail() messages through authenticated MailerSend SMTP.
-Optionally stores Cloudflare Turnstile credentials for compatible forms.
+Routes WordPress email through authenticated MailerSend SMTP and optionally supplies Cloudflare Turnstile credentials to compatible forms.
 
 == Description ==
 
