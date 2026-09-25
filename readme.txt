@@ -3,7 +3,7 @@ Contributors: acodebeard
 Donate link: https://paypal.me/acodebeard
 Tags: smtp, email, mailersend, contact form 7
 Requires at least: 6.5
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
 Stable tag: 1.1.1
 License: GPLv2 or later
@@ -80,7 +80,39 @@ The credential check connects to MailerSend and authenticates without sending
 an email. It stores only valid or not valid. It never stores or displays the
 SMTP response or an error transcript.
 
+== Server-managed mode ==
+
+Existing installations remain unchanged unless the Boolean constant
+VIAZEN_MAILERSEND_SMTP_MANAGED is true. In managed mode, SMTP requires an explicit
+production WP_ENVIRONMENT_TYPE constant (or environment variable when the
+constant is absent), Boolean VIAZEN_MAILERSEND_SMTP_ALLOW_SEND=true, and private
+server constants VIAZEN_MAILERSEND_SMTP_USERNAME,
+VIAZEN_MAILERSEND_SMTP_PASSWORD, VIAZEN_MAILERSEND_SMTP_FROM_EMAIL, and
+VIAZEN_MAILERSEND_SMTP_FROM_NAME. Values must be nonempty strings without control
+characters, and the sender email must be valid. IS_DDEV_PROJECT=true always
+blocks managed SMTP. Missing or invalid configuration fails closed.
+
+Load the private server configuration outside Git, the database, and the public
+document root. Managed mail never falls back to imported database credentials.
+Transport fields are read-only; a managed settings save clears stored/imported
+SMTP username/password values and ignores submitted replacements. Unrelated
+Turnstile settings remain editable. Existing database backups can still contain
+old secrets and must remain protected.
+
+Both normal WordPress sends and direct connector credential checks obey the
+policy. Blocked sends return false with a policy-only diagnostic, not successful
+delivery. Imported credential-check results do not validate this host's secrets.
+
+An environment MU-plugin must separately fail closed when this connector is
+missing or deactivated. An isolated local capture integration can remove the
+named guard_wp_mail and configure_phpmailer callbacks and install Mailpit while
+keeping direct credential checks blocked. Cron/CLI mail follows the same policy.
+This does not block unrelated plugins' direct sockets, HTTP mail APIs, or PHP
+mail() calls. See the repository README for the full configuration contract.
+
 == Hooks used ==
+
+* `pre_wp_mail` fails closed when managed SMTP is not permitted.
 
 * `phpmailer_init` configures WordPress PHPMailer for MailerSend SMTP.
 * `wp_mail_from` forces the configured From email.

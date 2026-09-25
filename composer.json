@@ -21,13 +21,23 @@
   "require-dev": {
     "php-stubs/wordpress-stubs": "^7.0",
     "phpstan/phpstan": "^2.2",
-    "wp-coding-standards/wpcs": "^3.3"
+    "squizlabs/php_codesniffer": "^3.13.6",
+    "wp-coding-standards/wpcs": "^3.4.1"
   },
   "scripts": {
     "metadata": "scripts/check-metadata.sh",
     "phpcs": "phpcs --standard=phpcs.xml.dist",
     "phpstan": "phpstan analyse --configuration phpstan.neon --no-progress",
-    "test": "php tests/smoke.php",
+    "test": [
+      "php tests/smoke.php",
+      "php tests/smoke.php string-allow",
+      "php tests/smoke.php integer-allow",
+      "php tests/smoke.php false-allow",
+      "php tests/smoke.php bad-password",
+      "php tests/smoke.php bad-sender",
+      "php tests/smoke.php constant-staging",
+      "php tests/smoke.php constant-production"
+    ],
     "package": "scripts/build-release.sh",
     "check": [
       "@metadata",

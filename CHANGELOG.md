@@ -4,6 +4,11 @@ All notable changes to SMTP Connector for MailerSend are documented here.
 
 ## Unreleased
 
+- Add optional server-managed, production-only SMTP configuration with explicit sending permission and no database credential fallback.
+- Apply managed policy to normal mail and direct credential checks; provide read-only managed fields and honest blocked-policy diagnostics.
+- Preserve settings-based behavior for installations that do not opt into managed mode.
+- Use explicit release files and tracked-source linting in CI; retain build directories and refuse to overwrite existing release archives.
+
 ## [1.1.1] - 2026-08-13
 
 - Switch the MailerSend SMTP connection to supported port 2525 for compatibility with hosts, including DigitalOcean Droplets, that block port 587.

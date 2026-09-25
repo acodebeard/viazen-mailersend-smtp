@@ -68,6 +68,67 @@ Reply-To:
 
 Only one SMTP or mail-routing plugin should be active at a time.
 
+## Server-managed production-only SMTP (opt-in)
+
+Existing installations remain settings-based unless
+`VIAZEN_MAILERSEND_SMTP_MANAGED` is the Boolean `true`. To require managed mode,
+define that constant in an MU-plugin or server configuration before regular
+plugins load. Put the remaining values in private server configuration outside
+Git, database backups, and the public document root, loaded by `wp-config.php`.
+
+The configuration contract is:
+
+| Constant | Required managed value |
+| --- | --- |
+| `VIAZEN_MAILERSEND_SMTP_MANAGED` | Boolean `true` |
+| `WP_ENVIRONMENT_TYPE` | Explicit string `production`, or the same environment variable when the constant is absent |
+| `VIAZEN_MAILERSEND_SMTP_ALLOW_SEND` | Boolean `true`; strings such as `"true"` and integer `1` do not enable mail |
+| `VIAZEN_MAILERSEND_SMTP_USERNAME` | Nonempty SMTP username |
+| `VIAZEN_MAILERSEND_SMTP_PASSWORD` | Nonempty SMTP password |
+| `VIAZEN_MAILERSEND_SMTP_FROM_EMAIL` | Valid verified sender email |
+| `VIAZEN_MAILERSEND_SMTP_FROM_NAME` | Nonempty sender name |
+
+An absent, blank, malformed, or non-production environment blocks SMTP.
+An explicit environment constant takes precedence over the environment
+variable. `IS_DDEV_PROJECT=true` always blocks managed SMTP, even with production
+configuration. Credential and sender values must be strings without control
+characters. Do not set the opt-in or credentials on local/staging hosts.
+
+Managed mode blocks both normal `wp_mail()` calls and direct connector
+credential checks. A denied normal send returns Boolean `false` and records a
+fixed policy diagnostic without message metadata; it never pretends delivery
+succeeded. The admin page explains blocked policy separately from invalid
+credentials, and server-managed fields are read-only. Imported credential-check
+results are not shown as proof that the current server's credentials are valid.
+
+Private values are resolved only for transport, not merged into stored options.
+A managed settings save ignores submitted SMTP credentials and clears imported
+SMTP username/password values from the saved settings, while preserving unrelated
+Turnstile options. Enabling managed mode alone does not erase old secrets already
+in the database or backups; protect those artifacts accordingly. No migration,
+activation-time cleanup, cron deletion, or modification of the private server
+configuration occurs.
+
+### Host integration and limits
+
+`Viazen\MailerSendSmtp\Plugin::managed_transport_allowed(): bool` reports whether
+this connector may contact SMTP; in unmanaged mode it returns `true` to retain
+legacy behavior. `Plugin::guard_wp_mail($pre)` is registered on `pre_wp_mail` at
+`PHP_INT_MAX`, and `Plugin::configure_phpmailer` retains its existing hook.
+
+A host MU guard should require managed mode and fail closed when the connector
+is absent/incompatible. This plugin cannot protect mail while deactivated.
+For an explicitly isolated local Mailpit integration, the MU guard may remove
+the connector's `guard_wp_mail` and `configure_phpmailer` hooks and configure
+the local capture transport itself. Keep direct credential checks blocked and
+clearly distinguish local capture from external delivery.
+
+Cron and CLI sends through `wp_mail()` use the same runtime policy. Do not rely
+only on disabling scheduling: imported jobs may still run. This is an
+application guard for WordPress mail and this connector, not an operating-system
+egress firewall. Other plugins that bypass `wp_mail()`, direct sockets, HTTP mail
+APIs, or native PHP `mail()` require separate controls.
+
 ## Diagnostics
 
 The settings page stores and displays only the latest WordPress mail result:
@@ -86,17 +147,29 @@ later.
 ## Development
 
 ```bash
-composer install
+composer install --no-interaction --prefer-dist --no-scripts --no-plugins
 composer check
-scripts/build-release.sh
 ```
 
 PHPStan runs at level 10 as part of `composer check`; the project does not use
 a PHPStan baseline or ignored findings.
 
-The installable archive is written to
-`dist/smtp-connector-for-mailersend.zip` and is not committed to the source
-repository.
+`composer check` also builds and verifies the installable archive at
+`dist/smtp-connector-for-mailersend.zip`; do not run a second build against the
+same output path. The archive is not committed to the source repository.
+
+Packaging uses an explicit release-file list and refuses to overwrite an
+existing archive. For another build, choose a new filename:
+
+```bash
+scripts/build-release.sh dist/smtp-connector-for-mailersend-review.zip
+```
+
+The script retains its uniquely named temporary build directory for inspection
+on success or failure and prints its location. Set `MAILERSEND_BUILD_TMPDIR`
+to an existing dedicated directory to control where these build files go.
+Otherwise it uses `TMPDIR` or the system temporary directory. Local build
+directories are not automatically removed; CI runner disposal handles CI files.
 
 The destructive lifecycle and integration suite is intended only for a local
 WordPress sandbox:
@@ -108,6 +181,41 @@ WP_PATH=/opt/lampp/htdocs/sandbox scripts/test-sandbox.sh
 It installs the ZIP normally, without a symlink, and verifies Plugin Check,
 in-place credential preservation, PHPMailer configuration, headers,
 diagnostics, deactivation, and uninstall.
+
+### Non-sending WordPress 7.1 compatibility fixtures
+
+The optional `tests/wp-compatibility.php` and
+`tests/wp-compatibility-legacy-bootstrap.php` fixtures passed on WordPress
+7.1.2 with PHP 8.4.24 in both managed and settings-based modes. These are manual
+integration-host checks, not part of `composer check` or the CI runtime suite.
+
+They require DDEV with the existing `TALGV_Mail_Safety` MU guard and an authorized
+administrator. They are not a standalone WordPress installation or plugin
+activation test. After reviewing the files and obtaining any required local
+execution approval, stage both fixtures and `viazen-mailersend-smtp.php` as
+regular sibling files in a fresh container directory named
+`/tmp/talgv-mail-compat-review`. The plugin must not already be loaded, and no
+private SMTP configuration may be present. Replace `approved-admin` below with
+the authorized local administrator's username:
+
+```bash
+ddev wp --skip-plugins --skip-themes --user=approved-admin eval-file /tmp/talgv-mail-compat-review/wp-compatibility.php managed /tmp/talgv-mail-compat-review
+ddev wp --skip-plugins --skip-themes --user=approved-admin --require=/tmp/talgv-mail-compat-review/wp-compatibility-legacy-bootstrap.php eval-file /tmp/talgv-mail-compat-review/wp-compatibility.php legacy /tmp/talgv-mail-compat-review
+```
+
+The fixtures use real WordPress settings, capability, nonce, mail, and diagnostic
+APIs but intercept final delivery in memory. Synthetic settings do not persist.
+The test phase blocks SQL writes and WordPress HTTP, rejects unknown mail hooks,
+and removes core's shutdown cron launcher only within that CLI process. The
+reviewed WP-CLI Runner sender-address fallback is allowed; verify the CLI source
+before approving a different build. Normal WordPress bootstrap precedes these
+test-phase guards, so this is not an operating-system sandbox.
+
+These checks do not prove SMTP authentication, inbox delivery, settings-save or
+plugin lifecycle persistence, browser appearance, or full plugin-stack
+compatibility. No real permitted SMTP credential check is invoked. The fixtures
+are excluded from the release archive, and do not change site configuration,
+stored schedules, or subsequent requests.
 
 ## Independent project and trademarks
 
