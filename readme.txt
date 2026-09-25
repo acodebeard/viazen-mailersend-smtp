@@ -3,7 +3,7 @@ Contributors: acodebeard
 Donate link: https://paypal.me/acodebeard
 Tags: smtp, email, mailersend, contact form 7
 Requires at least: 6.5
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
 Stable tag: 1.1.1
 License: GPLv2 or later

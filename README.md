@@ -182,6 +182,41 @@ It installs the ZIP normally, without a symlink, and verifies Plugin Check,
 in-place credential preservation, PHPMailer configuration, headers,
 diagnostics, deactivation, and uninstall.
 
+### Non-sending WordPress 7.1 compatibility fixtures
+
+The optional `tests/wp-compatibility.php` and
+`tests/wp-compatibility-legacy-bootstrap.php` fixtures passed on WordPress
+7.1.2 with PHP 8.4.24 in both managed and settings-based modes. These are manual
+integration-host checks, not part of `composer check` or the CI runtime suite.
+
+They require DDEV with the existing `TALGV_Mail_Safety` MU guard and an authorized
+administrator. They are not a standalone WordPress installation or plugin
+activation test. After reviewing the files and obtaining any required local
+execution approval, stage both fixtures and `viazen-mailersend-smtp.php` as
+regular sibling files in a fresh container directory named
+`/tmp/talgv-mail-compat-review`. The plugin must not already be loaded, and no
+private SMTP configuration may be present. Replace `approved-admin` below with
+the authorized local administrator's username:
+
+```bash
+ddev wp --skip-plugins --skip-themes --user=approved-admin eval-file /tmp/talgv-mail-compat-review/wp-compatibility.php managed /tmp/talgv-mail-compat-review
+ddev wp --skip-plugins --skip-themes --user=approved-admin --require=/tmp/talgv-mail-compat-review/wp-compatibility-legacy-bootstrap.php eval-file /tmp/talgv-mail-compat-review/wp-compatibility.php legacy /tmp/talgv-mail-compat-review
+```
+
+The fixtures use real WordPress settings, capability, nonce, mail, and diagnostic
+APIs but intercept final delivery in memory. Synthetic settings do not persist.
+The test phase blocks SQL writes and WordPress HTTP, rejects unknown mail hooks,
+and removes core's shutdown cron launcher only within that CLI process. The
+reviewed WP-CLI Runner sender-address fallback is allowed; verify the CLI source
+before approving a different build. Normal WordPress bootstrap precedes these
+test-phase guards, so this is not an operating-system sandbox.
+
+These checks do not prove SMTP authentication, inbox delivery, settings-save or
+plugin lifecycle persistence, browser appearance, or full plugin-stack
+compatibility. No real permitted SMTP credential check is invoked. The fixtures
+are excluded from the release archive, and do not change site configuration,
+stored schedules, or subsequent requests.
+
 ## Independent project and trademarks
 
 This project is independently developed and maintained by
