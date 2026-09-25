@@ -9,6 +9,9 @@ namespace PHPMailer\PHPMailer {
 		public static bool $smtpConnectResult = true;
 		public static bool $throwOnConnect = false;
 		public static int $smtpCloseCount = 0;
+		public static int $smtpConnectCount = 0;
+		public static int $constructorCount = 0;
+		public bool $recipientsCleared = false;
 		public string $Mailer = 'mail';
 		public string $Host = '';
 		public int $Port = 0;
@@ -20,11 +23,20 @@ namespace PHPMailer\PHPMailer {
 		public int $Timeout = 0;
 		public int $SMTPDebug = 0;
 
+		public function __construct() {
+			++self::$constructorCount;
+		}
+
+		public function clearAllRecipients(): void {
+			$this->recipientsCleared = true;
+		}
+
 		public function isSMTP(): void {
 			$this->Mailer = 'smtp';
 		}
 
 		public function smtpConnect(): bool {
+			++self::$smtpConnectCount;
 			if ( self::$throwOnConnect ) {
 				throw new \RuntimeException( 'Fake SMTP error with password=saved-password' );
 			}
@@ -56,7 +68,20 @@ namespace {
 	$GLOBALS['viazen_test_styles'] = array();
 
 	function add_action() {}
-	function add_filter() {}
+	function current_user_can() { return $GLOBALS['viazen_test_authorized'] ?? true; }
+	function check_admin_referer() {
+		if ( ! ( $GLOBALS['viazen_test_nonce_valid'] ?? true ) ) {
+			throw new RuntimeException( 'Invalid test nonce' );
+		}
+	}
+	function wp_die( $message ) { throw new RuntimeException( $message ); }
+	function wp_create_nonce() { return 'test-nonce'; }
+	function add_query_arg( $args, $url ) { return $url . '?' . http_build_query( $args ); }
+	function wp_safe_redirect( $url ) { throw new RuntimeException( $url ); }
+	function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_-]/', '', strtolower( $value ) ); }
+	function add_filter( $hook, $callback, $priority = 10 ) {
+		$GLOBALS['viazen_test_filters'][ $hook ][] = array( $callback, $priority );
+	}
 	function register_activation_hook() {}
 	function register_uninstall_hook() {}
 	function get_bloginfo() { return 'Viazen Test'; }
@@ -309,5 +334,140 @@ namespace {
 	$dismissed_donation_html = ob_get_clean();
 	viazen_assert( '' === $dismissed_donation_html, 'Dismissed donation link was rendered.' );
 
-	echo "Isolated plugin harness passed.\n";
+	// The same stubs cover managed mode. No real PHPMailer or WordPress is
+	// loaded, and credential checks below count only calls to the fake object.
+	viazen_assert( true === $class::managed_transport_allowed(), 'Unmanaged transport was unexpectedly blocked.' );
+	viazen_assert( null === $class::guard_wp_mail( null ), 'Unmanaged mail short-circuit changed.' );
+	viazen_assert( false === $class::guard_wp_mail( false ), 'Existing failure was lost in unmanaged mode.' );
+	$guard_hooks = $GLOBALS['viazen_test_filters']['pre_wp_mail'] ?? array();
+	viazen_assert( in_array( array( array( $class, 'guard_wp_mail' ), PHP_INT_MAX ), $guard_hooks, true ), 'Named mail guard is not registered.' );
+
+	$scenario = $argv[1] ?? 'default';
+	define( 'VIAZEN_MAILERSEND_SMTP_MANAGED', true );
+	putenv( 'IS_DDEV_PROJECT' );
+	putenv( 'WP_ENVIRONMENT_TYPE' );
+	viazen_assert( false === $class::managed_transport_allowed(), 'Missing environment enabled SMTP.' );
+	putenv( 'WP_ENVIRONMENT_TYPE=production' );
+	viazen_assert( false === $class::managed_transport_allowed(), 'Missing sending opt-in enabled SMTP.' );
+
+	$allow_value = match ( $scenario ) {
+		'string-allow' => 'true',
+		'integer-allow' => 1,
+		'false-allow' => false,
+		default => true,
+	};
+	define( 'VIAZEN_MAILERSEND_SMTP_ALLOW_SEND', $allow_value );
+	viazen_assert( false === $class::managed_transport_allowed(), 'Imported DB credentials enabled managed SMTP.' );
+	define( 'VIAZEN_MAILERSEND_SMTP_USERNAME', 'private-user' );
+	viazen_assert( false === $class::managed_transport_allowed(), 'Missing private password enabled SMTP.' );
+	define( 'VIAZEN_MAILERSEND_SMTP_PASSWORD', 'bad-password' === $scenario ? "private\npassword" : 'private-password' );
+	viazen_assert( false === $class::managed_transport_allowed(), 'Missing private sender enabled SMTP.' );
+	define( 'VIAZEN_MAILERSEND_SMTP_FROM_EMAIL', 'bad-sender' === $scenario ? 'not-an-email' : 'private-sender@example.test' );
+	define( 'VIAZEN_MAILERSEND_SMTP_FROM_NAME', 'Private Sender' );
+	if ( 'constant-staging' === $scenario ) {
+		define( 'WP_ENVIRONMENT_TYPE', 'staging' );
+	}
+	if ( 'constant-production' === $scenario ) {
+		define( 'WP_ENVIRONMENT_TYPE', 'production' );
+	}
+
+	$expected_allowed = in_array( $scenario, array( 'default', 'constant-production' ), true );
+	viazen_assert( $expected_allowed === $class::managed_transport_allowed(), 'Complete configuration policy mismatch: ' . $scenario );
+	viazen_assert( ( $expected_allowed ? null : false ) === $class::guard_wp_mail( null ), 'Managed mail result is not fail-closed.' );
+	viazen_assert( false === $class::guard_wp_mail( false ), 'An earlier failure was overridden.' );
+	viazen_assert( ( $expected_allowed ? true : false ) === $class::guard_wp_mail( true ), 'Blocked mail accepted an earlier success.' );
+
+	$managed_clean = $class::sanitize_settings(
+		array(
+			'smtp_username' => 'submitted-user',
+			'smtp_password' => 'submitted-password',
+			'from_email' => 'submitted@example.test',
+			'from_name' => 'Submitted Sender',
+			'turnstile_site_key' => 'updated-site-key',
+		)
+	);
+	viazen_assert( '' === $managed_clean['smtp_username'] && '' === $managed_clean['smtp_password'], 'Managed save persisted imported or submitted SMTP secrets.' );
+	viazen_assert( ! str_contains( serialize( $managed_clean ), 'private-' ), 'Server-private configuration entered settings persistence.' );
+	viazen_assert( 'sender@example.test' === $managed_clean['from_email'], 'Managed save altered read-only stored sender.' );
+	viazen_assert( 'updated-site-key' === $managed_clean['turnstile_site_key'], 'Managed mode broke unrelated Turnstile settings.' );
+	viazen_assert( 'saved-secret-key' === $managed_clean['turnstile_secret_key'], 'Managed save erased an unrelated secret.' );
+
+	if ( $expected_allowed ) {
+		$managed_mailer = new \PHPMailer\PHPMailer\PHPMailer();
+		$class::configure_phpmailer( $managed_mailer );
+		viazen_assert( 'smtp' === $managed_mailer->Mailer && 'smtp.mailersend.net' === $managed_mailer->Host, 'Managed transport configuration mismatch.' );
+		viazen_assert( 'private-user' === $managed_mailer->Username && 'private-password' === $managed_mailer->Password, 'Managed transport used DB credentials.' );
+		viazen_assert( 'private-sender@example.test' === $class::filter_from_email( 'other@example.test' ), 'Managed From email was not used.' );
+		viazen_assert( 'Private Sender' === $class::filter_from_name( 'Other' ), 'Managed From name was not used.' );
+		\PHPMailer\PHPMailer\PHPMailer::$smtpConnectResult = true;
+		viazen_assert( true === $class::check_smtp_credentials(), 'Allowed managed check did not reach the fake transport.' );
+		$class::record_failure( new WP_Error( 'private-user private-password', array() ) );
+		viazen_assert( ! str_contains( serialize( $GLOBALS['viazen_test_options']['viazen_mailersend_smtp_diagnostic'] ), 'private-' ), 'Managed diagnostic exposed a secret.' );
+	}
+
+	ob_start();
+	$class::render_username_field();
+	$class::render_password_field();
+	$class::render_from_email_field();
+	$class::render_from_name_field();
+	$managed_fields = ob_get_clean();
+	viazen_assert( ! str_contains( $managed_fields, '<input' ), 'Managed transport fields remain editable.' );
+	viazen_assert( ! str_contains( $managed_fields, 'private-' ) && ! str_contains( $managed_fields, 'saved-password' ), 'Managed fields disclosed credentials.' );
+	viazen_assert( str_contains( $managed_fields, 'Read-only' ), 'Managed fields are not explained.' );
+
+	// An explicit DDEV marker overrides even a production constant and keys.
+	putenv( 'IS_DDEV_PROJECT=true' );
+	viazen_assert( false === $class::managed_transport_allowed(), 'DDEV enabled production SMTP.' );
+	$before_connections = \PHPMailer\PHPMailer\PHPMailer::$smtpConnectCount;
+	$before_instances = \PHPMailer\PHPMailer\PHPMailer::$constructorCount;
+	viazen_assert( false === $class::check_smtp_credentials(), 'Direct local credential check was not blocked.' );
+	viazen_assert( $before_connections === \PHPMailer\PHPMailer\PHPMailer::$smtpConnectCount, 'Blocked check attempted a connection.' );
+	viazen_assert( $before_instances === \PHPMailer\PHPMailer\PHPMailer::$constructorCount, 'Blocked check constructed a mailer.' );
+	$blocked_mailer = new \PHPMailer\PHPMailer\PHPMailer();
+	$class::configure_phpmailer( $blocked_mailer );
+	viazen_assert( 'smtp' === $blocked_mailer->Mailer && $blocked_mailer->recipientsCleared, 'Defensive configuration permitted PHP-mail fallback or retained recipients.' );
+	viazen_assert( '' === $blocked_mailer->Username && '' === $blocked_mailer->Password, 'Blocked mailer retained credentials.' );
+	viazen_assert( false === $class::guard_wp_mail( null ), 'Local managed mail did not return boolean false.' );
+	$blocked_diagnostic = $GLOBALS['viazen_test_options']['viazen_mailersend_smtp_diagnostic'];
+	viazen_assert( 'policy-blocked' === $blocked_diagnostic['category'], 'Policy rejection was misclassified.' );
+	viazen_assert( '' === $blocked_diagnostic['recipient'] && '' === $blocked_diagnostic['subject'], 'Blocked diagnostic retained mail metadata.' );
+	ob_start();
+	$class::render_credentials_section();
+	$class::render_credential_check();
+	$blocked_html = ob_get_clean();
+	viazen_assert( str_contains( $blocked_html, 'Blocked by server policy' ), 'Blocked policy status is missing.' );
+	viazen_assert( str_contains( $blocked_html, 'disabled="disabled"' ), 'Blocked credential check is still enabled.' );
+	viazen_assert( ! str_contains( $blocked_html, '>Valid</strong>' ), 'Imported credential status appears valid on a blocked host.' );
+
+	try {
+		$class::handle_check_credentials();
+		viazen_assert( false, 'Blocked credential handler did not redirect.' );
+	} catch ( RuntimeException $error ) {
+		viazen_assert( str_contains( $error->getMessage(), 'policy-blocked' ), 'Blocked handler falsely reported invalid credentials.' );
+	}
+	$GLOBALS['viazen_test_authorized'] = false;
+	try {
+		$class::handle_check_credentials();
+		viazen_assert( false, 'Unauthorized handler was allowed.' );
+	} catch ( RuntimeException $error ) {
+		viazen_assert( str_contains( $error->getMessage(), 'not allowed' ), 'Handler lost capability enforcement.' );
+	}
+	$GLOBALS['viazen_test_authorized'] = true;
+	$GLOBALS['viazen_test_nonce_valid'] = false;
+	try {
+		$class::handle_check_credentials();
+		viazen_assert( false, 'Invalid nonce was allowed.' );
+	} catch ( RuntimeException $error ) {
+		viazen_assert( 'Invalid test nonce' === $error->getMessage(), 'Handler lost nonce enforcement.' );
+	}
+	viazen_assert( $before_connections === \PHPMailer\PHPMailer\PHPMailer::$smtpConnectCount, 'Admin policy/authorization checks connected to SMTP.' );
+
+	putenv( 'IS_DDEV_PROJECT' );
+	if ( ! defined( 'WP_ENVIRONMENT_TYPE' ) ) {
+		foreach ( array( 'staging', 'development', 'local', '', 'invalid' ) as $environment ) {
+			putenv( 'WP_ENVIRONMENT_TYPE=' . $environment );
+			viazen_assert( false === $class::managed_transport_allowed(), 'Non-production environment enabled SMTP: ' . $environment );
+		}
+	}
+	echo "Isolated plugin harness passed: {$scenario}.\n";
 }

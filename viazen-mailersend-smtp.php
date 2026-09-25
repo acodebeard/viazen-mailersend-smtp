@@ -87,6 +87,7 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function register_hooks(): void {
+		add_filter( 'pre_wp_mail', array( self::class, 'guard_wp_mail' ), PHP_INT_MAX );
 		add_action( 'phpmailer_init', array( self::class, 'configure_phpmailer' ), PHP_INT_MAX );
 		add_filter( 'wp_mail_from', array( self::class, 'filter_from_email' ), PHP_INT_MAX );
 		add_filter( 'wp_mail_from_name', array( self::class, 'filter_from_name' ), PHP_INT_MAX );
@@ -118,16 +119,91 @@ final class Plugin {
 	}
 
 	/**
+	 * Whether this host manages SMTP configuration outside WordPress options.
+	 *
+	 * A strict opt-in preserves existing settings-based behavior elsewhere.
+	 * An MU-plugin may require this mode before regular plugins load.
+	 *
+	 * @return bool
+	 */
+	private static function is_managed(): bool {
+		return defined( 'VIAZEN_MAILERSEND_SMTP_MANAGED' ) && true === VIAZEN_MAILERSEND_SMTP_MANAGED;
+	}
+
+	/**
+	 * Checks one fail-closed policy for normal mail and direct SMTP checks.
+	 *
+	 * WordPress defaults absent or invalid environments to production. Require
+	 * an explicit raw value instead, along with independent server permission.
+	 * Imported database options can never supply managed permission or secrets.
+	 *
+	 * @return bool Whether this connector may contact its SMTP transport.
+	 */
+	public static function managed_transport_allowed(): bool {
+		if ( ! self::is_managed() ) {
+			return true;
+		}
+
+		$environment = defined( 'WP_ENVIRONMENT_TYPE' ) ? WP_ENVIRONMENT_TYPE : getenv( 'WP_ENVIRONMENT_TYPE' );
+		if (
+			'true' === getenv( 'IS_DDEV_PROJECT' ) || 'production' !== $environment ||
+			! defined( 'VIAZEN_MAILERSEND_SMTP_ALLOW_SEND' ) || true !== VIAZEN_MAILERSEND_SMTP_ALLOW_SEND
+		) {
+			return false;
+		}
+
+		$settings = self::get_transport_settings();
+		return '' !== $settings['smtp_username'] && '' !== $settings['smtp_password'] &&
+			false !== is_email( $settings['from_email'] ) && '' !== $settings['from_name'];
+	}
+
+	/**
+	 * Rejects blocked mail with a real failure, never a truthy WP_Error.
+	 *
+	 * WordPress short-circuits before its mail-result actions here. Record only
+	 * a fixed policy diagnostic, without retaining the discarded mail payload.
+	 * Local capture integrations may remove this hook only when they also
+	 * replace configure_phpmailer; direct SMTP credential checks stay blocked.
+	 *
+	 * @param null|bool $pre Existing short-circuit result.
+	 * @return null|bool
+	 */
+	public static function guard_wp_mail( $pre ) {
+		if ( ! self::managed_transport_allowed() ) {
+			self::store_diagnostic( 'failure', array(), __( 'SMTP blocked by server-managed mail policy.', 'smtp-connector-for-mailersend' ) );
+			return false;
+		}
+
+		return $pre;
+	}
+
+	/**
 	 * Routes PHPMailer through MailerSend SMTP.
 	 *
-	 * This changes only the transport. Existing recipients, Reply-To, CC, BCC,
-	 * content type, message content, and attachments remain on the mail object.
+	 * Allowed sends change only the transport. Existing recipients, Reply-To,
+	 * CC, BCC, content, and attachments remain intact. A denied direct call
+	 * clears recipients defensively so send() fails before network access.
 	 *
 	 * @param PHPMailer $phpmailer WordPress PHPMailer instance.
 	 * @return void
 	 */
 	public static function configure_phpmailer( PHPMailer $phpmailer ): void {
-		$settings = self::get_settings();
+		$settings = self::get_transport_settings();
+
+		// The pre_wp_mail guard is authoritative. If called directly while
+		// blocked, make send() fail before transport, without throwing outside
+		// WordPress's send try/catch or falling back to PHP mail().
+		if ( ! self::managed_transport_allowed() ) {
+			$phpmailer->isSMTP();
+			$phpmailer->clearAllRecipients();
+			// PHPMailer public property names are part of its external API.
+			// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			$phpmailer->Host     = '';
+			$phpmailer->Username = '';
+			$phpmailer->Password = '';
+			// phpcs:enable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			return;
+		}
 
 		$phpmailer->isSMTP();
 		// PHPMailer public property names are part of its external API.
@@ -151,7 +227,7 @@ final class Plugin {
 	 * @return string
 	 */
 	public static function filter_from_email( string $email ): string {
-		$from_email = self::get_settings()['from_email'];
+		$from_email = self::get_transport_settings()['from_email'];
 
 		return is_email( $from_email ) ? $from_email : $email;
 	}
@@ -163,7 +239,7 @@ final class Plugin {
 	 * @return string
 	 */
 	public static function filter_from_name( string $name ): string {
-		$from_name = self::get_settings()['from_name'];
+		$from_name = self::get_transport_settings()['from_name'];
 
 		return '' !== $from_name ? $from_name : $name;
 	}
@@ -325,7 +401,7 @@ final class Plugin {
 		$credentials_changed = false;
 		$input               = is_array( $input ) ? wp_unslash( $input ) : array();
 
-		if ( isset( $input['smtp_username'] ) && is_string( $input['smtp_username'] ) ) {
+		if ( ! self::is_managed() && isset( $input['smtp_username'] ) && is_string( $input['smtp_username'] ) ) {
 			$username = self::limit_text( trim( sanitize_text_field( $input['smtp_username'] ) ), 320 );
 			if ( '' !== $username ) {
 				$clean['smtp_username'] = $username;
@@ -333,7 +409,7 @@ final class Plugin {
 			}
 		}
 
-		if ( isset( $input['smtp_password'] ) && is_string( $input['smtp_password'] ) && '' !== $input['smtp_password'] ) {
+		if ( ! self::is_managed() && isset( $input['smtp_password'] ) && is_string( $input['smtp_password'] ) && '' !== $input['smtp_password'] ) {
 			$password = preg_replace( '/[\x00-\x1F\x7F]/', '', $input['smtp_password'] );
 			if ( is_string( $password ) && '' !== $password ) {
 				$password               = self::limit_text( $password, 1024, false );
@@ -355,6 +431,15 @@ final class Plugin {
 			if ( is_string( $turnstile_secret ) && '' !== $turnstile_secret ) {
 				$clean['turnstile_secret_key'] = self::limit_text( $turnstile_secret, 200, false );
 			}
+		}
+
+		// Never persist server configuration or preserve imported SMTP secrets
+		// during a managed settings save. Unrelated Turnstile options still work.
+		if ( self::is_managed() ) {
+			$clean['smtp_username'] = '';
+			$clean['smtp_password'] = '';
+			delete_option( self::OPTION_CREDENTIAL_STATUS );
+			return $clean;
 		}
 
 		$submitted_email = isset( $input['from_email'] ) && is_string( $input['from_email'] ) ? trim( $input['from_email'] ) : '';
@@ -393,6 +478,12 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function render_credentials_section(): void {
+		if ( self::is_managed() ) {
+			$status = self::managed_transport_allowed()
+				? __( 'Server-managed SMTP is enabled for this explicit production environment.', 'smtp-connector-for-mailersend' )
+				: __( 'SMTP is blocked by server-managed mail policy. No external message or credential check will be attempted.', 'smtp-connector-for-mailersend' );
+			echo '<p><strong>' . esc_html( $status ) . '</strong></p>';
+		}
 		echo '<p>' . esc_html__( 'Mail is sent through smtp.mailersend.net using authenticated STARTTLS on port 2525.', 'smtp-connector-for-mailersend' ) . '</p>';
 	}
 
@@ -451,6 +542,11 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function render_username_field(): void {
+		if ( self::is_managed() ) {
+			echo '<p>' . esc_html__( 'Read-only: configured privately on the server, not in WordPress settings.', 'smtp-connector-for-mailersend' ) . '</p>';
+			return;
+		}
+
 		$settings = self::get_settings();
 
 		printf(
@@ -470,6 +566,11 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function render_password_field(): void {
+		if ( self::is_managed() ) {
+			echo '<p>' . esc_html__( 'Read-only: configured privately on the server, not in WordPress settings.', 'smtp-connector-for-mailersend' ) . '</p>';
+			return;
+		}
+
 		$settings = self::get_settings();
 
 		if ( '' === $settings['smtp_password'] ) {
@@ -497,6 +598,11 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function render_from_email_field(): void {
+		if ( self::is_managed() ) {
+			echo '<p>' . esc_html__( 'Read-only: configured privately on the server, not in WordPress settings.', 'smtp-connector-for-mailersend' ) . '</p>';
+			return;
+		}
+
 		$settings = self::get_settings();
 
 		printf(
@@ -512,6 +618,11 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function render_from_name_field(): void {
+		if ( self::is_managed() ) {
+			echo '<p>' . esc_html__( 'Read-only: configured privately on the server, not in WordPress settings.', 'smtp-connector-for-mailersend' ) . '</p>';
+			return;
+		}
+
 		$settings = self::get_settings();
 
 		printf(
@@ -618,12 +729,18 @@ final class Plugin {
 	 * @return void
 	 */
 	public static function render_credential_check(): void {
-		$settings        = self::get_settings();
+		$settings        = self::get_transport_settings();
 		$has_credentials = '' !== $settings['smtp_username'] && '' !== $settings['smtp_password'];
 		$stored_status   = get_option( self::OPTION_CREDENTIAL_STATUS, '' );
 		$status          = $has_credentials && is_string( $stored_status ) ? $stored_status : '';
 
-		if ( 'valid' === $status ) {
+		if ( self::is_managed() ) {
+			// Imported validation results do not describe this host's secrets.
+			$status_label = self::managed_transport_allowed()
+				? __( 'Server managed; use Check credentials to verify now', 'smtp-connector-for-mailersend' )
+				: __( 'Blocked by server policy', 'smtp-connector-for-mailersend' );
+			$status_class = 'viazen-mailersend-smtp-credential-status--unchecked';
+		} elseif ( 'valid' === $status ) {
 			$status_label = __( 'Valid', 'smtp-connector-for-mailersend' );
 			$status_class = 'viazen-mailersend-smtp-credential-status--valid';
 		} elseif ( 'invalid' === $status ) {
@@ -643,9 +760,9 @@ final class Plugin {
 		<form class="viazen-mailersend-smtp-credential-check-form" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
 			<input type="hidden" name="action" value="viazen_mailersend_smtp_check_credentials">
 			<?php wp_nonce_field( self::CREDENTIAL_CHECK_NONCE_ACTION ); ?>
-			<button type="submit" class="button button-secondary"<?php disabled( ! $has_credentials ); ?>><?php esc_html_e( 'Check credentials', 'smtp-connector-for-mailersend' ); ?></button>
+			<button type="submit" class="button button-secondary"<?php disabled( ! $has_credentials || ! self::managed_transport_allowed() ); ?>><?php esc_html_e( 'Check credentials', 'smtp-connector-for-mailersend' ); ?></button>
 		</form>
-		<?php if ( ! $has_credentials ) : ?>
+		<?php if ( ! $has_credentials && ! self::is_managed() ) : ?>
 			<p class="description"><?php esc_html_e( 'Save credentials before checking.', 'smtp-connector-for-mailersend' ); ?></p>
 		<?php endif; ?>
 		<?php
@@ -698,7 +815,7 @@ final class Plugin {
 	 * @return void
 	 */
 	private static function render_contact_form_7_guidance(): void {
-		$settings     = self::get_settings();
+		$settings     = self::get_transport_settings();
 		$example_name = '' !== $settings['from_name'] ? $settings['from_name'] : __( 'Website Name', 'smtp-connector-for-mailersend' );
 		$example_mail = is_email( $settings['from_email'] ) ? $settings['from_email'] : 'forms@example.com';
 		$from_example = sprintf( '%1$s <%2$s>', $example_name, $example_mail );
@@ -746,7 +863,11 @@ final class Plugin {
 		self::require_settings_access();
 		check_admin_referer( self::CREDENTIAL_CHECK_NONCE_ACTION );
 
-		$settings = self::get_settings();
+		if ( ! self::managed_transport_allowed() ) {
+			self::redirect_with_notice( 'policy-blocked' );
+		}
+
+		$settings = self::get_transport_settings();
 		if ( '' === $settings['smtp_username'] || '' === $settings['smtp_password'] ) {
 			delete_option( self::OPTION_CREDENTIAL_STATUS );
 			self::redirect_with_notice( 'credentials-missing' );
@@ -766,6 +887,12 @@ final class Plugin {
 	 * @return bool Whether the SMTP server accepted the saved credentials.
 	 */
 	public static function check_smtp_credentials(): bool {
+		// This path bypasses wp_mail and phpmailer_init; deny before even
+		// constructing a mailer, regardless of admin, cron, or CLI caller.
+		if ( ! self::managed_transport_allowed() ) {
+			return false;
+		}
+
 		$mailer = null;
 
 		try {
@@ -903,6 +1030,10 @@ final class Plugin {
 	private static function classify_failure( string $message ): string {
 		$message = strtolower( $message );
 
+		if ( str_contains( $message, 'server-managed mail policy' ) ) {
+			return 'policy-blocked';
+		}
+
 		if ( preg_match( '/authent(?:icate|ication)|smtp auth|\b535\b|username and password/', $message ) ) {
 			return 'authentication-failure';
 		}
@@ -930,6 +1061,7 @@ final class Plugin {
 	 */
 	private static function get_diagnostic_category_label( string $category ): string {
 		$labels = array(
+			'policy-blocked'         => __( 'SMTP blocked by server-managed mail policy; no transport was contacted.', 'smtp-connector-for-mailersend' ),
 			'transport-accepted'     => __( 'WordPress handed the message to the configured mail transport successfully. This does not prove final inbox delivery.', 'smtp-connector-for-mailersend' ),
 			'authentication-failure' => __( 'SMTP authentication failure.', 'smtp-connector-for-mailersend' ),
 			'connection-failure'     => __( 'SMTP connection failure.', 'smtp-connector-for-mailersend' ),
@@ -1000,7 +1132,7 @@ final class Plugin {
 	 */
 	private static function sanitize_error_message( string $message ): string {
 		$message  = sanitize_text_field( $message );
-		$settings = self::get_settings();
+		$settings = self::get_transport_settings();
 
 		foreach ( array( $settings['smtp_username'], $settings['smtp_password'] ) as $credential ) {
 			if ( '' === $credential ) {
@@ -1078,6 +1210,7 @@ final class Plugin {
 		}
 
 		$notices = array(
+			'policy-blocked'      => array( 'error', __( 'SMTP is blocked by server-managed mail policy. Credentials were not checked.', 'smtp-connector-for-mailersend' ) ),
 			'invalid-recipient'   => array( 'error', __( 'Enter a valid recipient email address.', 'smtp-connector-for-mailersend' ) ),
 			'test-success'        => array( 'success', __( 'WordPress handed the test email to the configured mail transport successfully. This does not prove final inbox delivery.', 'smtp-connector-for-mailersend' ) ),
 			'test-failure'        => array( 'error', __( 'Test email failed. Review the latest diagnostic result below.', 'smtp-connector-for-mailersend' ) ),
@@ -1113,6 +1246,46 @@ final class Plugin {
 		if ( ! class_exists( PHPMailer::class, false ) ) {
 			require_once ABSPATH . WPINC . '/PHPMailer/PHPMailer.php';
 		}
+	}
+
+	/**
+	 * Reads one private configuration value without coercion or cleanup.
+	 *
+	 * Reject malformed configuration rather than silently changing a password
+	 * or permitting newline injection. Values never enter the options array.
+	 *
+	 * @param string $name Configuration constant name.
+	 * @return string
+	 */
+	private static function private_config_value( string $name ): string {
+		$value = defined( $name ) ? constant( $name ) : '';
+		return is_string( $value ) && '' !== trim( $value ) && ! preg_match( '/[\x00-\x1F\x7F]/', $value ) ? $value : '';
+	}
+
+	/**
+	 * Returns transport-only settings, separate from storage and settings UI.
+	 *
+	 * Managed mode never falls back to imported credentials or sender values.
+	 *
+	 * @return array{smtp_username:string, smtp_password:string, from_email:string, from_name:string}
+	 */
+	private static function get_transport_settings(): array {
+		if ( self::is_managed() ) {
+			return array(
+				'smtp_username' => self::private_config_value( 'VIAZEN_MAILERSEND_SMTP_USERNAME' ),
+				'smtp_password' => self::private_config_value( 'VIAZEN_MAILERSEND_SMTP_PASSWORD' ),
+				'from_email'    => self::private_config_value( 'VIAZEN_MAILERSEND_SMTP_FROM_EMAIL' ),
+				'from_name'     => self::private_config_value( 'VIAZEN_MAILERSEND_SMTP_FROM_NAME' ),
+			);
+		}
+
+		$settings = self::get_settings();
+		return array(
+			'smtp_username' => $settings['smtp_username'],
+			'smtp_password' => $settings['smtp_password'],
+			'from_email'    => $settings['from_email'],
+			'from_name'     => $settings['from_name'],
+		);
 	}
 
 	/**

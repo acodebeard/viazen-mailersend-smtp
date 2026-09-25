@@ -27,7 +27,16 @@
     "metadata": "scripts/check-metadata.sh",
     "phpcs": "phpcs --standard=phpcs.xml.dist",
     "phpstan": "phpstan analyse --configuration phpstan.neon --no-progress",
-    "test": "php tests/smoke.php",
+    "test": [
+      "php tests/smoke.php",
+      "php tests/smoke.php string-allow",
+      "php tests/smoke.php integer-allow",
+      "php tests/smoke.php false-allow",
+      "php tests/smoke.php bad-password",
+      "php tests/smoke.php bad-sender",
+      "php tests/smoke.php constant-staging",
+      "php tests/smoke.php constant-production"
+    ],
     "package": "scripts/build-release.sh",
     "check": [
       "@metadata",

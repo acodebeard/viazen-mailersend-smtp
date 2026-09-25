@@ -68,6 +68,67 @@ Reply-To:
 
 Only one SMTP or mail-routing plugin should be active at a time.
 
+## Server-managed production-only SMTP (opt-in)
+
+Existing installations remain settings-based unless
+`VIAZEN_MAILERSEND_SMTP_MANAGED` is the Boolean `true`. To require managed mode,
+define that constant in an MU-plugin or server configuration before regular
+plugins load. Put the remaining values in private server configuration outside
+Git, database backups, and the public document root, loaded by `wp-config.php`.
+
+The configuration contract is:
+
+| Constant | Required managed value |
+| --- | --- |
+| `VIAZEN_MAILERSEND_SMTP_MANAGED` | Boolean `true` |
+| `WP_ENVIRONMENT_TYPE` | Explicit string `production`, or the same environment variable when the constant is absent |
+| `VIAZEN_MAILERSEND_SMTP_ALLOW_SEND` | Boolean `true`; strings such as `"true"` and integer `1` do not enable mail |
+| `VIAZEN_MAILERSEND_SMTP_USERNAME` | Nonempty SMTP username |
+| `VIAZEN_MAILERSEND_SMTP_PASSWORD` | Nonempty SMTP password |
+| `VIAZEN_MAILERSEND_SMTP_FROM_EMAIL` | Valid verified sender email |
+| `VIAZEN_MAILERSEND_SMTP_FROM_NAME` | Nonempty sender name |
+
+An absent, blank, malformed, or non-production environment blocks SMTP.
+An explicit environment constant takes precedence over the environment
+variable. `IS_DDEV_PROJECT=true` always blocks managed SMTP, even with production
+configuration. Credential and sender values must be strings without control
+characters. Do not set the opt-in or credentials on local/staging hosts.
+
+Managed mode blocks both normal `wp_mail()` calls and direct connector
+credential checks. A denied normal send returns Boolean `false` and records a
+fixed policy diagnostic without message metadata; it never pretends delivery
+succeeded. The admin page explains blocked policy separately from invalid
+credentials, and server-managed fields are read-only. Imported credential-check
+results are not shown as proof that the current server's credentials are valid.
+
+Private values are resolved only for transport, not merged into stored options.
+A managed settings save ignores submitted SMTP credentials and clears imported
+SMTP username/password values from the saved settings, while preserving unrelated
+Turnstile options. Enabling managed mode alone does not erase old secrets already
+in the database or backups; protect those artifacts accordingly. No migration,
+activation-time cleanup, cron deletion, or modification of the private server
+configuration occurs.
+
+### Host integration and limits
+
+`Viazen\MailerSendSmtp\Plugin::managed_transport_allowed(): bool` reports whether
+this connector may contact SMTP; in unmanaged mode it returns `true` to retain
+legacy behavior. `Plugin::guard_wp_mail($pre)` is registered on `pre_wp_mail` at
+`PHP_INT_MAX`, and `Plugin::configure_phpmailer` retains its existing hook.
+
+A host MU guard should require managed mode and fail closed when the connector
+is absent/incompatible. This plugin cannot protect mail while deactivated.
+For an explicitly isolated local Mailpit integration, the MU guard may remove
+the connector's `guard_wp_mail` and `configure_phpmailer` hooks and configure
+the local capture transport itself. Keep direct credential checks blocked and
+clearly distinguish local capture from external delivery.
+
+Cron and CLI sends through `wp_mail()` use the same runtime policy. Do not rely
+only on disabling scheduling: imported jobs may still run. This is an
+application guard for WordPress mail and this connector, not an operating-system
+egress firewall. Other plugins that bypass `wp_mail()`, direct sockets, HTTP mail
+APIs, or native PHP `mail()` require separate controls.
+
 ## Diagnostics
 
 The settings page stores and displays only the latest WordPress mail result:
