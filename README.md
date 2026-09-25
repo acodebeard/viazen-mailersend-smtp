@@ -147,17 +147,29 @@ later.
 ## Development
 
 ```bash
-composer install
+composer install --no-interaction --prefer-dist --no-scripts --no-plugins
 composer check
-scripts/build-release.sh
 ```
 
 PHPStan runs at level 10 as part of `composer check`; the project does not use
 a PHPStan baseline or ignored findings.
 
-The installable archive is written to
-`dist/smtp-connector-for-mailersend.zip` and is not committed to the source
-repository.
+`composer check` also builds and verifies the installable archive at
+`dist/smtp-connector-for-mailersend.zip`; do not run a second build against the
+same output path. The archive is not committed to the source repository.
+
+Packaging uses an explicit release-file list and refuses to overwrite an
+existing archive. For another build, choose a new filename:
+
+```bash
+scripts/build-release.sh dist/smtp-connector-for-mailersend-review.zip
+```
+
+The script retains its uniquely named temporary build directory for inspection
+on success or failure and prints its location. Set `MAILERSEND_BUILD_TMPDIR`
+to an existing dedicated directory to control where these build files go.
+Otherwise it uses `TMPDIR` or the system temporary directory. Local build
+directories are not automatically removed; CI runner disposal handles CI files.
 
 The destructive lifecycle and integration suite is intended only for a local
 WordPress sandbox:

@@ -9,7 +9,9 @@ Before opening a pull request:
    screenshots, commits, or GitHub Issues.
 2. Run `composer install` and `composer check`. PHPStan level 10 must pass
    without a baseline or ignored findings.
-3. Build the package with `scripts/build-release.sh`.
+3. Review the package produced by `composer check`. For another build, pass a
+   new output filename to `scripts/build-release.sh`; existing ZIPs are never
+   overwritten, and the printed temporary build directory is retained.
 4. For mail-path changes, run `scripts/test-sandbox.sh` against a disposable
    local WordPress installation.
 5. Describe the behavior change and the checks performed.
