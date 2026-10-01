@@ -2,7 +2,13 @@
 
 All notable changes to SMTP Connector for MailerSend are documented here.
 
-## Unreleased
+## [1.1.2] - 2026-10-01
+
+- Add optional server-managed SMTP, production-only by default, with explicit sending permission and no database credential fallback.
+- Allow a host-owned policy to grant specific non-production purposes without bypassing DDEV, private credentials or the sending opt-in; recipient/envelope protection remains the host's responsibility.
+- Apply managed policy to normal mail and direct credential checks; provide read-only managed fields and honest blocked-policy diagnostics.
+- Preserve settings-based behavior for installations that do not opt into managed mode.
+- Use explicit release files and tracked-source linting in CI; retain build directories and refuse to overwrite existing release archives.
 
 ## [1.1.1] - 2026-08-13
 

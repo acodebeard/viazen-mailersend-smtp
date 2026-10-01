@@ -35,7 +35,7 @@ jobs:
           tools: composer:v2
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
+        run: composer install --no-interaction --prefer-dist --no-scripts --no-plugins
 
       - name: Validate Composer metadata
         run: composer validate --strict
@@ -43,8 +43,14 @@ jobs:
       - name: Run project checks
         run: composer check
 
-      - name: Lint PHP files
-        run: find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Lint tracked PHP source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-files -z -- '*.php' |
+            while IFS= read -r -d '' file; do
+              php -l "${file}"
+            done
 
       - name: Enforce source-only policy
         run: |

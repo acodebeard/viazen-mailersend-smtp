@@ -7,7 +7,6 @@ published_slug="smtp-connector-for-mailersend"
 wp_bin="${WP_BIN:-wp}"
 wp_path="${WP_PATH:-/opt/lampp/htdocs/sandbox}"
 wp_user="${WP_USER:-}"
-archive="${project_root}/dist/${published_slug}.zip"
 
 if ! command -v "${wp_bin}" >/dev/null 2>&1; then
 	printf 'WP-CLI was not found: %s\n' "${wp_bin}" >&2
@@ -45,9 +44,15 @@ run_plugin_check() {
 	fi
 }
 
-trap restore_clean_plugin EXIT
+# Build a fresh archive without replacing the normal release ZIP. Keep both
+# this archive and the builder's temporary files available for inspection.
+build_tmp_root="${MAILERSEND_BUILD_TMPDIR:-${TMPDIR:-/tmp}}"
+archive_dir="$(mktemp -d "${build_tmp_root%/}/mailersend-sandbox-archive-XXXXXX")"
+archive="${archive_dir}/${published_slug}.zip"
+"${project_root}/scripts/build-release.sh" "${archive}"
 
-"${project_root}/scripts/build-release.sh"
+# Only attempt a restoring install once a verified archive actually exists.
+trap restore_clean_plugin EXIT
 "${wp[@]}" eval-file "${project_root}/tests/wp-update-setup.php"
 "${wp[@]}" plugin install "${archive}" --force --activate
 "${wp[@]}" eval-file "${project_root}/tests/wp-update-preserved.php"
