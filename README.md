@@ -68,7 +68,7 @@ Reply-To:
 
 Only one SMTP or mail-routing plugin should be active at a time.
 
-## Server-managed production-only SMTP (opt-in)
+## Server-managed SMTP (opt-in; production-only by default)
 
 Existing installations remain settings-based unless
 `VIAZEN_MAILERSEND_SMTP_MANAGED` is the Boolean `true`. To require managed mode,
@@ -88,7 +88,12 @@ The configuration contract is:
 | `VIAZEN_MAILERSEND_SMTP_FROM_EMAIL` | Valid verified sender email |
 | `VIAZEN_MAILERSEND_SMTP_FROM_NAME` | Nonempty sender name |
 
-An absent, blank, malformed, or non-production environment blocks SMTP.
+An absent, blank, malformed, or non-production environment blocks SMTP by default.
+A host-owned `viazen_mailersend_smtp_managed_environment_allowed` filter may grant
+an explicit environment and purpose (`send`, `readiness`, `credential_check`).
+Permission must be Boolean `true`; it does not bypass DDEV, the sending opt-in,
+or private credentials. Host policy must separately constrain recipients and
+the final envelope. A readiness grant is not permission to send or probe SMTP.
 An explicit environment constant takes precedence over the environment
 variable. `IS_DDEV_PROJECT=true` always blocks managed SMTP, even with production
 configuration. Credential and sender values must be strings without control
@@ -111,7 +116,7 @@ configuration occurs.
 
 ### Host integration and limits
 
-`Viazen\MailerSendSmtp\Plugin::managed_transport_allowed(): bool` reports whether
+`Viazen\MailerSendSmtp\Plugin::managed_transport_allowed(string $purpose = 'send'): bool` reports whether
 this connector may contact SMTP; in unmanaged mode it returns `true` to retain
 legacy behavior. `Plugin::guard_wp_mail($pre)` is registered on `pre_wp_mail` at
 `PHP_INT_MAX`, and `Plugin::configure_phpmailer` retains its existing hook.

@@ -3,7 +3,7 @@
  * Plugin Name:       SMTP Connector for MailerSend
  * Plugin URI:        https://github.com/acodebeard/viazen-mailersend-smtp
  * Description:       Routes WordPress email through MailerSend SMTP and supplies optional Turnstile credentials to forms.
- * Version:           1.1.1
+ * Version:           1.1.2
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            acodebeard
@@ -33,7 +33,7 @@ final class Plugin {
 	private const OPTION_SETTINGS = 'viazen_mailersend_smtp_settings';
 
 	/** Plugin version used for cache-safe admin assets. */
-	private const VERSION = '1.1.1';
+	private const VERSION = '1.1.2';
 
 	/** Most recent mail result option. */
 	private const OPTION_DIAGNOSTIC = 'viazen_mailersend_smtp_diagnostic';
@@ -137,18 +137,31 @@ final class Plugin {
 	 * an explicit raw value instead, along with independent server permission.
 	 * Imported database options can never supply managed permission or secrets.
 	 *
+	 * @param string $purpose Send, readiness inspection or credential check.
 	 * @return bool Whether this connector may contact its SMTP transport.
 	 */
-	public static function managed_transport_allowed(): bool {
+	public static function managed_transport_allowed( string $purpose = 'send' ): bool {
 		if ( ! self::is_managed() ) {
 			return true;
 		}
 
 		$environment = defined( 'WP_ENVIRONMENT_TYPE' ) ? WP_ENVIRONMENT_TYPE : getenv( 'WP_ENVIRONMENT_TYPE' );
 		if (
-			'true' === getenv( 'IS_DDEV_PROJECT' ) || 'production' !== $environment ||
+			'true' === getenv( 'IS_DDEV_PROJECT' ) ||
 			! defined( 'VIAZEN_MAILERSEND_SMTP_ALLOW_SEND' ) || true !== VIAZEN_MAILERSEND_SMTP_ALLOW_SEND
 		) {
+			return false;
+		}
+
+		// Non-production stays blocked unless host-owned code explicitly grants
+		// this purpose. This never bypasses managed secrets, opt-in or DDEV.
+		// Site policy must also constrain recipients at the wp_mail/envelope layer.
+		if ( 'production' !== $environment && true !== apply_filters(
+			'viazen_mailersend_smtp_managed_environment_allowed',
+			false,
+			$environment,
+			$purpose
+		) ) {
 			return false;
 		}
 
@@ -889,7 +902,7 @@ final class Plugin {
 	public static function check_smtp_credentials(): bool {
 		// This path bypasses wp_mail and phpmailer_init; deny before even
 		// constructing a mailer, regardless of admin, cron, or CLI caller.
-		if ( ! self::managed_transport_allowed() ) {
+		if ( ! self::managed_transport_allowed( 'credential_check' ) ) {
 			return false;
 		}
 

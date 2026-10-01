@@ -82,6 +82,13 @@ namespace {
 	function add_filter( $hook, $callback, $priority = 10 ) {
 		$GLOBALS['viazen_test_filters'][ $hook ][] = array( $callback, $priority );
 	}
+	// Minimal filter dispatcher for the purpose-specific managed-policy contract.
+	function apply_filters( $hook, $value, ...$args ) {
+		foreach ( $GLOBALS['viazen_test_filters'][ $hook ] ?? array() as $entry ) {
+			$value = ( $entry[0] )( $value, ...$args );
+		}
+		return $value;
+	}
 	function register_activation_hook() {}
 	function register_uninstall_hook() {}
 	function get_bloginfo() { return 'Viazen Test'; }
@@ -180,7 +187,7 @@ namespace {
 	$class::enqueue_admin_assets( 'settings_page_viazen-mailersend-smtp' );
 	$admin_style = $GLOBALS['viazen_test_styles']['viazen-mailersend-smtp-admin'] ?? array();
 	viazen_assert( str_ends_with( $admin_style['src'] ?? '', '/assets/css/admin-settings.css' ), 'Admin stylesheet URL is incorrect.' );
-	viazen_assert( '1.1.1' === ( $admin_style['version'] ?? '' ), 'Admin stylesheet version is incorrect.' );
+	viazen_assert( '1.1.2' === ( $admin_style['version'] ?? '' ), 'Admin stylesheet version is incorrect.' );
 
 	ob_start();
 	$class::render_username_field();
@@ -468,6 +475,33 @@ namespace {
 			putenv( 'WP_ENVIRONMENT_TYPE=' . $environment );
 			viazen_assert( false === $class::managed_transport_allowed(), 'Non-production environment enabled SMTP: ' . $environment );
 		}
+	}
+	// Only the default process has valid credentials and a mutable environment.
+	// All transport objects above are stubs; none of these checks opens a socket.
+	if ( 'default' === $scenario ) {
+		putenv( 'WP_ENVIRONMENT_TYPE=staging' );
+		$policy_hook = 'viazen_mailersend_smtp_managed_environment_allowed';
+		$GLOBALS['viazen_test_filters'][ $policy_hook ] = array();
+		add_filter( $policy_hook, static function ( $allowed, $environment, $purpose ) {
+			return 'staging' === $environment && 'readiness' === $purpose;
+		} );
+		viazen_assert( true === $class::managed_transport_allowed( 'readiness' ), 'Explicit readiness permission was ignored.' );
+		viazen_assert( false === $class::managed_transport_allowed(), 'Readiness authorized a send.' );
+		$before_connections = \PHPMailer\PHPMailer\PHPMailer::$smtpConnectCount;
+		viazen_assert( false === $class::check_smtp_credentials(), 'Readiness authorized a credential probe.' );
+		viazen_assert( $before_connections === \PHPMailer\PHPMailer\PHPMailer::$smtpConnectCount, 'Readiness opened a connection.' );
+		putenv( 'IS_DDEV_PROJECT=true' );
+		viazen_assert( false === $class::managed_transport_allowed( 'readiness' ), 'Filter bypassed the DDEV block.' );
+		putenv( 'IS_DDEV_PROJECT' );
+		$GLOBALS['viazen_test_filters'][ $policy_hook ] = array();
+		add_filter( $policy_hook, static function () { return 'true'; } );
+		viazen_assert( false === $class::managed_transport_allowed(), 'String permission was accepted.' );
+		$GLOBALS['viazen_test_filters'][ $policy_hook ] = array();
+		add_filter( $policy_hook, static function ( $allowed, $environment, $purpose ) {
+			return 'staging' === $environment && 'send' === $purpose;
+		} );
+		viazen_assert( true === $class::managed_transport_allowed(), 'Explicit send permission was ignored.' );
+		viazen_assert( false === $class::check_smtp_credentials(), 'Send permission authorized a credential probe.' );
 	}
 	echo "Isolated plugin harness passed: {$scenario}.\n";
 }

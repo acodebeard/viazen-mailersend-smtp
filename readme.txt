@@ -5,7 +5,7 @@ Tags: smtp, email, mailersend, contact form 7
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -109,6 +109,12 @@ named guard_wp_mail and configure_phpmailer callbacks and install Mailpit while
 keeping direct credential checks blocked. Cron/CLI mail follows the same policy.
 This does not block unrelated plugins' direct sockets, HTTP mail APIs, or PHP
 mail() calls. See the repository README for the full configuration contract.
+
+An optional host-owned viazen_mailersend_smtp_managed_environment_allowed filter
+can grant a specific non-production purpose (send, readiness, credential_check).
+Its default is false. It cannot bypass DDEV, the strict sending opt-in or valid
+private credentials. The host must independently constrain recipients and the
+final message envelope; readiness alone never authorizes an SMTP connection.
 
 == Hooks used ==
 
@@ -222,6 +228,11 @@ Deactivation preserves plugin settings. Deleting the plugin through WordPress
 removes its settings, credential-check status, and latest diagnostic result.
 
 == Changelog ==
+
+= 1.1.2 =
+
+* Added opt-in server-managed mail policy and purpose-specific host permission for restricted staging tests. Non-production remains blocked by default.
+* Preserved existing settings-based installations and required private credentials in managed mode.
 
 = 1.1.1 =
 
